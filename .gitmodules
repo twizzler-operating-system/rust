@@ -28,8 +28,8 @@
 	shallow = true
 [submodule "src/llvm-project"]
 	path = src/llvm-project
-	url = https://github.com/rust-lang/llvm-project.git
-	branch = rustc/20.1-2025-02-13
+	url = ../llvm-project.git
+	branch = twizzler-2025-04
 	shallow = true
 [submodule "src/doc/embedded-book"]
 	path = src/doc/embedded-book
@@ -37,7 +37,8 @@
 	shallow = true
 [submodule "library/backtrace"]
 	path = library/backtrace
-	url = https://github.com/rust-lang/backtrace-rs.git
+	url = ../backtrace-rs.git
+	branch = twizzler-2025-04
 	shallow = true
 [submodule "src/tools/rustc-perf"]
 	path = src/tools/rustc-perf
@@ -51,3 +52,7 @@
 	path = src/gcc
 	url = https://github.com/rust-lang/gcc.git
 	shallow = true
+[submodule "libc"]
+	path = libc
+	url = ../libc.git
+	branch = twizzler-2025-04

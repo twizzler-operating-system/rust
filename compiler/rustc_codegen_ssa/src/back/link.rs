@@ -1901,7 +1901,10 @@ fn add_pre_link_args(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor)
 /// Add a link script embedded in the target, if applicable.
 fn add_link_script(cmd: &mut dyn Linker, sess: &Session, tmpdir: &Path, crate_type: CrateType) {
     match (crate_type, &sess.target.link_script) {
-        (CrateType::Cdylib | CrateType::Executable, Some(script)) => {
+        (CrateType::Dylib | CrateType::Cdylib | CrateType::Executable, Some(script)) => {
+            if crate_type == CrateType::Dylib && sess.target.os != "twizzler" {
+                return;
+            }
             if !sess.target.linker_flavor.is_gnu() {
                 sess.dcx().emit_fatal(errors::LinkScriptUnavailable);
             }
