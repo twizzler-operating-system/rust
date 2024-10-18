@@ -1656,6 +1656,11 @@ supported_targets! {
 
     ("msp430-none-elf", msp430_none_elf),
 
+    ("aarch64-unknown-twizzler", aarch64_unknown_twizzler),
+    ("x86_64-unknown-twizzler", x86_64_unknown_twizzler),
+    ("aarch64-unknown-twizzler-minruntime", aarch64_unknown_twizzler_minruntime),
+    ("x86_64-unknown-twizzler-minruntime", x86_64_unknown_twizzler_minruntime),
+
     ("aarch64_be-unknown-hermit", aarch64_be_unknown_hermit),
     ("aarch64-unknown-hermit", aarch64_unknown_hermit),
     ("riscv64gc-unknown-hermit", riscv64gc_unknown_hermit),

@@ -32,6 +32,8 @@ pub(crate) mod redox;
 pub(crate) mod solaris;
 pub(crate) mod solid;
 pub(crate) mod teeos;
+pub(crate) mod thumb;
+pub(crate) mod twizzler;
 pub(crate) mod uefi_msvc;
 pub(crate) mod unikraft_linux_musl;
 pub(crate) mod vxworks;
