@@ -364,6 +364,7 @@ dependencies = [
  "rand_xorshift",
  "rustc-demangle",
  "std_detect",
+ "twizzler-runtime-api",
  "unwind",
  "wasi",
  "windows-targets 0.0.0",

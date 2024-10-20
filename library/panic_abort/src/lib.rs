@@ -16,6 +16,8 @@
 #![feature(rustc_attrs)]
 #![allow(internal_features)]
 #![deny(unsafe_op_in_unsafe_fn)]
+// TODO (twizzler): remove this once the bootstrap compiler recognizes twizzler.
+#![allow(unexpected_cfgs)]
 
 #[cfg(target_os = "android")]
 mod android;
@@ -57,6 +59,7 @@ pub unsafe fn __rust_start_panic(_payload: &mut dyn PanicPayload) -> u32 {
         } else if #[cfg(any(target_os = "hermit",
                             all(target_vendor = "fortanix", target_env = "sgx"),
                             target_os = "xous",
+                            target_os = "twizzler",
                             target_os = "uefi",
         ))] {
             unsafe fn abort() -> ! {

@@ -379,6 +379,10 @@ impl Step for Llvm {
             cfg.define("LLVM_ENABLE_ZLIB", "OFF");
         }
 
+        if self.target.contains("twizzler") {
+            cfg.cflag("-nostdlibinc");
+        }
+
         // Are we compiling for iOS/tvOS/watchOS/visionOS?
         if target.contains("apple-ios")
             || target.contains("apple-tvos")
@@ -1434,6 +1438,25 @@ impl Step for Libunwind {
             if self.target.is_windows() {
                 cfg.define("_LIBUNWIND_HIDE_SYMBOLS", "1");
                 cfg.define("_LIBUNWIND_IS_NATIVE_ONLY", "1");
+            }
+            if self.target.contains("twizzler") {
+                cfg.static_flag(true);
+                cfg.define("_LIBUNWIND_HAS_NO_THREADS", None);
+                cfg.define("_LIBUNWIND_REMEMBER_STACK_ALLOC", None);
+                // FIXME (dbittman): This is a hack to get bootstrap headers included when compiling libunwind.
+                // We build clang as part of building llvm when bootstrapping the Twizzler toolchain,
+                // but it will be unable to find any libc headers (since there aren't any). Fortunately,
+                // libunwind is the only part of the Twizzler toolchain build that needs system headers,
+                // it needs very few. So we just provide some hacky ones.
+                cfg.flag("-nostdlibinc");
+                let mut bootstrap_path = root.clone();
+                bootstrap_path.push("../../../../bootstrap-include");
+                cfg.include(bootstrap_path);
+                //cfg.flag("-fno-stack-protector");
+                cfg.define("__ELF__", None);
+                //cfg.define("NDEBUG", None);
+                //cfg.define("_LIBUNWIND_NO_HEAP", None);
+                cfg.define("_LIBUNWIND_USE_DLADDR", Some("0"));
             }
         }
 
