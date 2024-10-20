@@ -14,6 +14,8 @@ use crate::fs;
 use crate::io;
 #[cfg(target_os = "hermit")]
 use crate::os::hermit::io::OwnedFd;
+#[cfg(target_os = "twizzler")]
+use crate::os::fd::OwnedFd;
 #[cfg(all(not(target_os = "hermit"), not(target_os = "motor")))]
 use crate::os::raw;
 #[cfg(all(doc, not(target_arch = "wasm32")))]
@@ -27,11 +29,19 @@ use crate::sys::{AsInner, FromInner, IntoInner};
 
 /// Raw file descriptors.
 #[stable(feature = "rust1", since = "1.0.0")]
+<<<<<<< HEAD
 #[cfg(all(not(target_os = "hermit"), not(target_os = "motor")))]
+=======
+#[cfg(not(any(target_os = "hermit", target_os = "twizzler")))]
+>>>>>>> 9eafc5de0e6 (Initial port of standard library to Twizzler.)
 pub type RawFd = raw::c_int;
 #[stable(feature = "rust1", since = "1.0.0")]
 #[cfg(any(target_os = "hermit", target_os = "motor"))]
 pub type RawFd = i32;
+#[rustc_allowed_through_unstable_modules]
+#[stable(feature = "rust1", since = "1.0.0")]
+#[cfg(target_os = "twizzler")]
+pub type RawFd = twizzler_runtime_api::RawFd;
 
 /// A trait to extract the raw file descriptor from an underlying object.
 ///

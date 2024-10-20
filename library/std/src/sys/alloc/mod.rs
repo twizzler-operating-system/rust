@@ -106,5 +106,7 @@ cfg_select! {
     }
     target_os = "zkvm" => {
         mod zkvm;
+    } else if #[cfg(target_os = "twizzler")] {
+        mod twizzler;
     }
 }

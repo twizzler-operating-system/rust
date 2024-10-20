@@ -11,6 +11,8 @@
 )]
 #![allow(internal_features)]
 #![deny(unsafe_op_in_unsafe_fn)]
+// TODO (twizzler): remove this once the bootstrap compiler recognizes twizzler.
+#![allow(unexpected_cfgs)]
 
 // Force libc to be included even if unused. This is required by many platforms.
 #[cfg(not(all(windows, target_env = "msvc")))]
@@ -33,6 +35,7 @@ cfg_select! {
         windows,
         target_os = "psp",
         target_os = "solid_asp3",
+        target_os = "twizzler",
         all(target_vendor = "fortanix", target_env = "sgx"),
     ) => {
         mod libunwind;

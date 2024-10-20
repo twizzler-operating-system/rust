@@ -357,6 +357,7 @@ fn copy_third_party_objects(
             && (target.contains("linux")
                 || target.contains("fuchsia")
                 || target.contains("aix")
+                || target.contains("twizzler")
                 || target.contains("hexagon"))
     {
         let libunwind_path =
@@ -459,6 +460,14 @@ fn copy_self_contained_objects(
             let dst = libdir_self_contained.join(obj);
             builder.copy_link(&src, &dst, FileType::NativeLibrary);
             target_deps.push((dst, DependencyType::TargetSelfContained));
+        }
+    } else if target.contains("twizzler") {
+        let crt_path = builder.ensure(llvm::CrtBeginEnd { target });
+        for &obj in &["crtbegin.o", "crtbeginS.o", "crtend.o", "crtendS.o"] {
+            let src = crt_path.join(obj);
+            let target = libdir_self_contained.join(obj);
+            builder.copy_link(&src, &target);
+            target_deps.push((target, DependencyType::TargetSelfContained));
         }
     }
 

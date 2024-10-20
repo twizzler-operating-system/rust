@@ -175,6 +175,8 @@ pub mod solaris;
 pub mod solid;
 #[cfg(target_os = "trusty")]
 pub mod trusty;
+#[cfg(target_os = "twizzler")]
+pub mod twizzler;
 #[cfg(target_os = "uefi")]
 pub mod uefi;
 #[cfg(target_os = "vita")]
@@ -189,6 +191,7 @@ pub mod xous;
     target_os = "hermit",
     target_os = "trusty",
     target_os = "wasi",
+    target_os = "twizzler",
     target_os = "motor",
     doc
 ))]

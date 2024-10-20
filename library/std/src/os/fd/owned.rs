@@ -17,6 +17,7 @@ use crate::mem::ManuallyDrop;
     target_os = "hermit",
     target_os = "trusty",
     target_os = "motor"
+    target_os = "twizzler"
 )))]
 use crate::sys::cvt;
 #[cfg(not(target_os = "trusty"))]
@@ -103,6 +104,7 @@ impl BorrowedFd<'_> {
         target_arch = "wasm32",
         target_os = "hermit",
         target_os = "trusty",
+        target_os = "twizzler",
         target_os = "motor"
     )))]
     #[stable(feature = "io_safety", since = "1.63.0")]
@@ -140,6 +142,12 @@ impl BorrowedFd<'_> {
     pub fn try_clone_to_owned(&self) -> io::Result<OwnedFd> {
         let fd = moto_rt::fs::duplicate(self.as_raw_fd()).map_err(crate::sys::map_motor_error)?;
         Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    #[cfg(target_os = "twizzler")]
+    #[stable(feature = "io_safety", since = "1.63.0")]
+    pub fn try_clone_to_owned(&self) -> crate::io::Result<OwnedFd> {
+        twizzler_runtime_api::get_runtime().dup(self.as_raw_fd(), twizzler_runtime_api::DupFlags::empty())
+            .map(|fd| unsafe { OwnedFd::from_raw_fd(fd) })
+            .map_err(|e| e.into())
     }
 }
 
@@ -188,6 +196,7 @@ impl FromRawFd for OwnedFd {
 impl Drop for OwnedFd {
     #[inline]
     fn drop(&mut self) {
+        #[cfg(not(target_os = "twizzler"))]
         unsafe {
             // Note that errors are ignored when closing a file descriptor. According to POSIX 2024,
             // we can and indeed should retry `close` on `EINTR`
@@ -210,6 +219,8 @@ impl Drop for OwnedFd {
             #[cfg(target_os = "hermit")]
             let _ = hermit_abi::close(self.fd.as_inner());
         }
+        #[cfg(target_os = "twizzler")]
+        let _ = twizzler_runtime_api::get_runtime().close(self.fd);
     }
 }
 

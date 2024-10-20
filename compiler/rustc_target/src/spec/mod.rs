@@ -1658,8 +1658,6 @@ supported_targets! {
 
     ("aarch64-unknown-twizzler", aarch64_unknown_twizzler),
     ("x86_64-unknown-twizzler", x86_64_unknown_twizzler),
-    ("aarch64-unknown-twizzler-minruntime", aarch64_unknown_twizzler_minruntime),
-    ("x86_64-unknown-twizzler-minruntime", x86_64_unknown_twizzler_minruntime),
 
     ("aarch64_be-unknown-hermit", aarch64_be_unknown_hermit),
     ("aarch64-unknown-hermit", aarch64_unknown_hermit),

@@ -107,7 +107,12 @@ pub type _Unwind_Exception_Cleanup_Fn =
 #[cfg_attr(
     all(
         feature = "llvm-libunwind",
-        any(target_os = "fuchsia", target_os = "linux", target_os = "xous")
+        any(
+            target_os = "fuchsia",
+            target_os = "linux",
+            target_os = "xous",
+            target_os = "twizzler"
+        )
     ),
     link(name = "unwind", kind = "static", modifiers = "-bundle")
 )]
@@ -196,7 +201,7 @@ cfg_select! {
         pub const UNWIND_IP_REG: c_int = 15;
 
         #[cfg_attr(
-            all(feature = "llvm-libunwind", any(target_os = "fuchsia", target_os = "linux", target_os = "xous")),
+            all(feature = "llvm-libunwind", any(target_os = "fuchsia", target_os = "linux", target_os = "xous", target_os = "twizzler")),
             link(name = "unwind", kind = "static", modifiers = "-bundle")
         )]
         unsafe extern "C" {

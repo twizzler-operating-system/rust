@@ -82,6 +82,10 @@ cfg_select! {
         mod trusty;
         pub use trusty::fill_bytes;
     }
+    target_os = "twizzler" => {
+        mod twizzler;
+        pub use twizzler::fill_bytes;
+    }
     target_os = "uefi" => {
         mod uefi;
         pub use uefi::fill_bytes;

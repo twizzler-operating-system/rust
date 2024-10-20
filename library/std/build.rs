@@ -38,6 +38,7 @@ fn main() {
         || target_os == "trusty"
         || target_os == "l4re"
         || target_os == "redox"
+        || target_os == "twizzler"
         || target_os == "haiku"
         || target_os == "vxworks"
         || target_arch == "wasm32"
@@ -79,4 +80,5 @@ fn main() {
     println!("cargo:rustc-cfg=backtrace_in_libstd");
 
     println!("cargo:rustc-env=STD_ENV_ARCH={}", env::var("CARGO_CFG_TARGET_ARCH").unwrap());
+    println!("cargo::rustc-check-cfg=cfg(target_os, values(\"twizzler\"))");
 }

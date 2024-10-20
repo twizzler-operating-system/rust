@@ -12,6 +12,9 @@
 #![feature(staged_api)]
 #![feature(rustc_attrs)]
 #![allow(internal_features)]
+#![deny(unsafe_op_in_unsafe_fn)]
+// TODO (twizzler): remove this once the bootstrap compiler recognizes twizzler.
+#![allow(unexpected_cfgs)]
 
 #[cfg(target_os = "android")]
 mod android;
