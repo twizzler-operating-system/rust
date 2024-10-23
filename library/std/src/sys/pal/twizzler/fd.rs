@@ -11,7 +11,7 @@ use twizzler_rt_abi::io::IoError;
 use twizzler_rt_abi::io::SeekFrom as InnerSeek;
 
 impl core::convert::From<IoError> for io::Error {
-    fn from(error: IoError) -> io::Error {
+    fn from(_error: IoError) -> io::Error {
         todo!()
     }
 }

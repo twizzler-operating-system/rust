@@ -425,6 +425,16 @@ dependencies = [
  "bitflags",
  "compiler_builtins",
  "rustc-std-workspace-core",
+ "twizzler-types",
+]
+
+[[package]]
+name = "twizzler-types"
+version = "0.99.0"
+dependencies = [
+ "bitflags",
+ "compiler_builtins",
+ "rustc-std-workspace-core",
 ]
 
 [[package]]

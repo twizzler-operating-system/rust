@@ -130,7 +130,7 @@ impl BorrowedFd<'_> {
     #[cfg(target_os = "twizzler")]
     #[stable(feature = "io_safety", since = "1.63.0")]
     pub fn try_clone_to_owned(&self) -> crate::io::Result<OwnedFd> {
-        twizzler_runtime_api::get_runtime().dup(self.as_raw_fd(), twizzler_runtime_api::DupFlags::empty())
+        twizzler_rt_abi::fd::twz_rt_fd_dup(self.as_raw_fd())
             .map(|fd| unsafe { OwnedFd::from_raw_fd(fd) })
             .map_err(|e| e.into())
     }
@@ -205,7 +205,7 @@ impl Drop for OwnedFd {
             let _ = hermit_abi::close(self.fd.as_inner());
         }
         #[cfg(target_os = "twizzler")]
-        let _ = twizzler_runtime_api::get_runtime().close(self.fd);
+        let _ = twizzler_rt_abi::fd::twz_rt_fd_close(self.fd);
     }
 }
 

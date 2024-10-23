@@ -30,8 +30,7 @@ pub fn unsupported_err() -> crate::io::Error {
 
 #[inline]
 pub fn abort_internal() -> ! {
-    let runtime = twizzler_runtime_api::get_runtime();
-    runtime.abort()
+    twizzler_rt_abi::core::twz_rt_abort()
 }
 
 // This function is needed by the panic runtime. The symbol is named in
@@ -53,11 +52,13 @@ pub unsafe fn init(argc: isize, argv: *const *const u8, _sigpipe: u8) {
 // NOTE: this is not guaranteed to run, for example when the program aborts.
 pub unsafe fn cleanup() {}
 
+// TODO: remove
 #[inline]
 pub(crate) fn is_interrupted(_errno: i32) -> bool {
     false
 }
 
+// TODO: remove
 pub fn decode_error_kind(_errno: i32) -> crate::io::ErrorKind {
     unimplemented!()
 }
@@ -66,26 +67,25 @@ pub fn decode_error_kind(_errno: i32) -> crate::io::ErrorKind {
 #[allow(unreachable_code)]
 #[allow(unused_variables)]
 pub unsafe extern "C" fn std_entry_from_runtime(
-    aux: twizzler_runtime_api::BasicAux,
-) -> twizzler_runtime_api::BasicReturn {
+    aux: twizzler_rt_abi::core::BasicAux,
+) -> twizzler_rt_abi::core::BasicReturn {
     extern "C" {
         fn main(argc: isize, argv: *const *const c_char) -> i32;
     }
 
-    crate::sys::os::init_environment(aux.env);
-    let runtime = twizzler_runtime_api::get_runtime();
+    crate::sys::os::init_environment(aux.env as *const *const i8);
     // If pre_main_hook returns a code, then don't call main and exit with that code instead.
-    let code = if let Some(pre_code) = runtime.pre_main_hook() {
+    let code = if let Some(pre_code) = twizzler_rt_abi::core::twz_rt_pre_main_hook() {
         pre_code
     } else {
-        main(aux.argc as isize, aux.args)
+        main(aux.argc as isize, aux.args as *const *const i8)
     };
-    runtime.post_main_hook();
+    twizzler_rt_abi::core::twz_rt_post_main_hook();
 
     unsafe {
         crate::sys::thread_local::destructors::run();
     }
     crate::rt::thread_cleanup();
 
-    twizzler_runtime_api::BasicReturn { code }
+    twizzler_rt_abi::core::BasicReturn { code }
 }

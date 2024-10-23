@@ -10,8 +10,7 @@ pub const UNIX_EPOCH: SystemTime = SystemTime(Duration::from_secs(0));
 
 impl Instant {
     pub fn now() -> Instant {
-        let runtime = twizzler_runtime_api::get_runtime();
-        Instant(runtime.get_monotonic())
+        Instant(twizzler_rt_abi::time::twz_rt_get_monotonic_time())
     }
 
     #[allow(dead_code)]
@@ -21,9 +20,8 @@ impl Instant {
 
     #[allow(dead_code)]
     pub fn actually_monotonic() -> bool {
-        use twizzler_runtime_api::Monotonicity;
-        let runtime = twizzler_runtime_api::get_runtime();
-        match runtime.actual_monotonicity() {
+        use twizzler_rt_abi::time::Monotonicity;
+        match twizzler_rt_abi::info::twz_rt_get_sysinfo().clock_monotonicity() {
             Monotonicity::NonMonotonic => false,
             Monotonicity::Weak => true,
             Monotonicity::Strict => true,
@@ -45,8 +43,7 @@ impl Instant {
 
 impl SystemTime {
     pub fn now() -> SystemTime {
-        let runtime = twizzler_runtime_api::get_runtime();
-        SystemTime(runtime.get_system_time())
+        SystemTime(twizzler_rt_abi::time::twz_rt_get_system_time())
     }
 
     pub fn sub_time(&self, other: &SystemTime) -> Result<Duration, Duration> {

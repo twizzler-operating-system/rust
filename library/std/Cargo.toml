@@ -78,7 +78,7 @@ hermit-abi = { version = "0.5.0", features = [
 ], public = true }
 
 [target.'cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), target_os = "twizzler"))'.dependencies]
-twizzler-rt-abi = { path = "../twizzler-rt-abi", features = ["rustc-dep-of-std"], public = true }
+twizzler-rt-abi = { path = "../twizzler-abis/rt-abi", features = ["rustc-dep-of-std"], public = true }
 
 #[target.'cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), target_os = "twizzler"))'.dependencies.compiler_builtins]
 # TODO (dbittman): one of the features is "c", which enables optimized c impls for some builtins. But when I enable it,
