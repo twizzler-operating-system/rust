@@ -33,7 +33,7 @@ pub type RawFd = i32;
 #[rustc_allowed_through_unstable_modules]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[cfg(target_os = "twizzler")]
-pub type RawFd = twizzler_runtime_api::RawFd;
+pub type RawFd = twizzler_rt_abi::fd::RawFd;
 
 /// A trait to extract the raw file descriptor from an underlying object.
 ///

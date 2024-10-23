@@ -1,45 +1,18 @@
 #![unstable(reason = "not public", issue = "none", feature = "fd")]
 
-use crate::io::{self, Read, SeekFrom, ErrorKind};
+use crate::io::{self, Read, SeekFrom};
 use crate::io::SeekFrom::{Start, Current, End};
 
 use crate::sys::unsupported;
 use crate::os::fd::{FromRawFd, OwnedFd, RawFd, AsRawFd, IntoRawFd, AsFd, BorrowedFd};
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 
-use twizzler_runtime_api::SeekFrom as InnerSeek;
-use twizzler_runtime_api::{FsError, WriteError, ReadError};
+use twizzler_rt_abi::io::IoError;
+use twizzler_rt_abi::io::SeekFrom as InnerSeek;
 
-impl core::convert::From<FsError> for io::Error {
-    fn from(error: FsError) -> io::Error {
-        match error {
-            FsError::Other => io::Error::new(io::ErrorKind::Other, "unknown error"),
-            FsError::InvalidPath => io::Error::from(ErrorKind::NotFound),
-            FsError::LookupError => io::Error::new(ErrorKind::Other, "File Descriptor not found"),
-            FsError::SeekError => io::Error::from(ErrorKind::UnexpectedEof),
-        }
-    }
-}
-
-impl core::convert::From<WriteError> for io::Error {
-    fn from(error: WriteError) -> io::Error {
-        match error {
-            WriteError::Other => io::Error::new(io::ErrorKind::Other, "unknown error"),
-            WriteError::IoError => io::Error::new(io::ErrorKind::Other, "I/O error"),
-            WriteError::PermissionDenied => io::Error::new(io::ErrorKind::PermissionDenied, "permission denied"),
-            WriteError::NoIo => io::Error::new(io::ErrorKind::Other, "no I/O on this file"),
-        }
-    }
-}
-
-impl core::convert::From<ReadError> for io::Error {
-    fn from(error: ReadError) -> io::Error {
-        match error {
-            ReadError::Other => io::Error::new(io::ErrorKind::Other, "unknown error"),
-            ReadError::IoError => io::Error::new(io::ErrorKind::Other, "I/O error"),
-            ReadError::PermissionDenied => io::Error::new(io::ErrorKind::PermissionDenied, "permission denied"),
-            ReadError::NoIo => io::Error::new(io::ErrorKind::Other, "no I/O on this file"),
-        }
+impl core::convert::From<IoError> for io::Error {
+    fn from(error: IoError) -> io::Error {
+        todo!()
     }
 }
 
@@ -51,8 +24,7 @@ pub struct FileDesc {
 
 impl FileDesc {
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-        let runtime = twizzler_runtime_api::get_runtime();
-        let result = runtime.read(self.fd.as_raw_fd(), buf)?;
+        let result = twizzler_rt_abi::io::twz_rt_fd_read(self.fd.as_raw_fd(), buf)?;
         Ok(result as usize)
     }
 
@@ -62,25 +34,23 @@ impl FileDesc {
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-        let runtime = twizzler_runtime_api::get_runtime();
-        let result = runtime.write(self.fd.as_raw_fd(), buf)?;
+        let result = twizzler_rt_abi::io::twz_rt_fd_write(self.fd.as_raw_fd(), buf)?;
         Ok(result as usize)
     }
 
     pub fn seek(&self, pos: SeekFrom) -> io::Result<u64> {
-        let runtime = twizzler_runtime_api::get_runtime();
         let inner: InnerSeek = match pos {
             Start(x) => InnerSeek::Start(x),
             End(x) => InnerSeek::End(x),
             Current(x) => InnerSeek::Current(x),
         };
 
-        let result = runtime.seek(self.fd.as_raw_fd(), inner)?;
+        let result = twizzler_rt_abi::io::twz_rt_fd_seek(self.fd.as_raw_fd(), inner)?;
         Ok(result as u64)
     }
 
     pub fn duplicate(&self) -> io::Result<FileDesc> {
-        self.duplicate_path(&[])
+        Ok(Self { fd: twizzler_rt_abi::fd::twz_rt_fd_dup(self.fd.as_raw_fd())? })
     }
 
     pub fn duplicate_path(&self, _path: &[u8]) -> io::Result<FileDesc> {
