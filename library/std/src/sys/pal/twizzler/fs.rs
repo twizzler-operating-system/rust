@@ -228,9 +228,7 @@ impl File {
     }
 
     pub fn open_c(path: &CStr, _opts: &OpenOptions) -> io::Result<File> {
-        let runtime = twizzler_runtime_api::get_runtime();
-        let fd = runtime.open(path)?;
-
+        let fd = twizzler_rt_abi::fd::twz_rt_fd_open(path)?;
         Ok(File(unsafe { FileDesc::from_raw_fd(fd) }))
     }
 
@@ -255,10 +253,12 @@ impl File {
     }
 
     pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        // TODO: use twizzler vec io
         crate::io::default_read_vectored(|buf| self.read(buf), bufs)
     }
 
     pub fn is_read_vectored(&self) -> bool {
+        // TODO: use twizzler vec io
         false
     }
 
@@ -271,10 +271,12 @@ impl File {
     }
 
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        // TODO: use twizzler vec io
         crate::io::default_write_vectored(|buf| self.write(buf), bufs)
     }
 
     pub fn is_write_vectored(&self) -> bool {
+        // TODO: use twizzler vec io
         false
     }
 

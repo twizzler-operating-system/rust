@@ -3,8 +3,10 @@ use crate::io;
 use crate::num::NonZeroUsize;
 use crate::time::Duration;
 
+use twizzler_rt_abi::{thread::{ThreadId}};
+
 pub struct Thread {
-    internal_id: u32,
+    internal_id: ThreadId,
 }
 
 unsafe impl Send for Thread {}
@@ -15,9 +17,8 @@ pub const DEFAULT_MIN_STACK_SIZE: usize = 1 << 21;
 impl Thread {
     // unsafe: see thread::Builder::spawn_unchecked for safety requirements
     pub unsafe fn new(stack: usize, p: Box<dyn FnOnce()>) -> io::Result<Thread> {
-        let runtime = twizzler_runtime_api::get_runtime();
         let p = Box::into_raw(Box::new(p));
-        let internal_id = runtime.spawn(twizzler_runtime_api::ThreadSpawnArgs {
+        let internal_id = twizzler_rt_abi::thread::twz_rt_spawn_thread(twizzler_rt_abi::thread::ThreadSpawnArgs {
             stack_size: stack,
             start: thread_start as usize,
             arg: p.expose_provenance(),
@@ -37,40 +38,36 @@ impl Thread {
                 crate::sys::thread_local::destructors::run();
                 crate::rt::thread_cleanup();
             }
-            let runtime = twizzler_runtime_api::get_runtime();
-            runtime.exit(0);
+            twizzler_rt_abi::core::twz_rt_exit(0);
         }
     }
 
     pub fn yield_now() {
-        let runtime = twizzler_runtime_api::get_runtime();
-        runtime.yield_now();
+        twizzler_rt_abi::thread::twz_rt_yield();
     }
 
     pub fn set_name(name: &CStr) {
-        let runtime = twizzler_runtime_api::get_runtime();
-        runtime.set_name(name);
+        twizzler_rt_abi::thread::twz_rt_set_thread_name(name);
     }
 
     pub fn sleep(dur: Duration) {
-        let runtime = twizzler_runtime_api::get_runtime();
-        runtime.sleep(dur);
+        twizzler_rt_abi::thread::twz_rt_sleep(dur);
     }
 
+    // TODO: return err
     pub fn join(self) {
-        let runtime = twizzler_runtime_api::get_runtime();
-        let _ = runtime.join(self.internal_id, None);
+        let _ = twizzler_rt_abi::thread::twz_rt_join_thread(self.internal_id, None);
     }
 
     #[allow(dead_code)]
     #[inline]
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> ThreadId {
         self.internal_id
     }
 }
 
 pub fn available_parallelism() -> io::Result<NonZeroUsize> {
-    let runtime = twizzler_runtime_api::get_runtime();
-    Ok(runtime.available_parallelism())
+    let info = twizzler_rt_abi::info::twz_rt_get_sysinfo();
+    Ok(info.available_parallelism.try_into()?)
 }
 

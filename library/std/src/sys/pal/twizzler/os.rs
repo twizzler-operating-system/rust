@@ -188,8 +188,7 @@ pub fn home_dir() -> Option<PathBuf> {
 }
 
 pub fn exit(code: i32) -> ! {
-    let runtime = twizzler_runtime_api::get_runtime();
-    runtime.exit(code)
+    twizzler_rt_abi::core::twz_rt_exit(code)
 }
 
 pub fn getpid() -> u32 {
