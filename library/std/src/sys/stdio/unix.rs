@@ -10,6 +10,8 @@ use crate::os::hermit::io::FromRawFd;
 #[cfg(target_family = "unix")]
 use crate::os::unix::io::FromRawFd;
 use crate::sys::fd::FileDesc;
+#[cfg(target_os = "twizzler")]
+use crate::os::fd::FromRawFd;
 
 pub struct Stdin;
 pub struct Stdout;
@@ -92,6 +94,12 @@ impl io::Write for Stderr {
     }
 }
 
+#[cfg(target_os = "twizzler")]
+pub fn is_ebadf(_err: &io::Error) -> bool {
+    false
+}
+
+#[cfg(unix)]
 pub fn is_ebadf(err: &io::Error) -> bool {
     err.raw_os_error() == Some(EBADF as i32)
 }

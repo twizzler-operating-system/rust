@@ -1,13 +1,13 @@
 #![unstable(reason = "not public", issue = "none", feature = "fd")]
 
-use crate::io::{self, Read, SeekFrom};
+use crate::io::{self, Read, SeekFrom, IoSlice, IoSliceMut, BorrowedCursor};
 use crate::io::SeekFrom::{Start, Current, End};
 
 use crate::sys::unsupported;
 use crate::os::fd::{FromRawFd, OwnedFd, RawFd, AsRawFd, IntoRawFd, AsFd, BorrowedFd};
 use crate::sys_common::{AsInner, FromInner, IntoInner};
 
-use twizzler_rt_abi::io::IoError;
+use twizzler_rt_abi::io::{IoError, IoFlags};
 use twizzler_rt_abi::io::SeekFrom as InnerSeek;
 
 impl core::convert::From<IoError> for io::Error {
@@ -24,7 +24,7 @@ pub struct FileDesc {
 
 impl FileDesc {
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-        let result = twizzler_rt_abi::io::twz_rt_fd_read(self.fd.as_raw_fd(), buf)?;
+        let result = twizzler_rt_abi::io::twz_rt_fd_read(self.fd.as_raw_fd(), buf, IoFlags::empty())?;
         Ok(result as usize)
     }
 
@@ -34,8 +34,20 @@ impl FileDesc {
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-        let result = twizzler_rt_abi::io::twz_rt_fd_write(self.fd.as_raw_fd(), buf)?;
+        let result = twizzler_rt_abi::io::twz_rt_fd_write(self.fd.as_raw_fd(), buf, IoFlags::empty())?;
         Ok(result as usize)
+    }
+
+    pub fn read_buf(&mut self, _buf: BorrowedCursor<'_>) -> io::Result<()> {
+        todo!()
+    }
+
+    pub fn write_vectored(&mut self, _bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        todo!()
+    }
+
+    pub fn read_vectored(&mut self, _bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        todo!()
     }
 
     pub fn seek(&self, pos: SeekFrom) -> io::Result<u64> {
@@ -50,7 +62,7 @@ impl FileDesc {
     }
 
     pub fn duplicate(&self) -> io::Result<FileDesc> {
-        Ok(Self { fd: twizzler_rt_abi::fd::twz_rt_fd_dup(self.fd.as_raw_fd())? })
+        Ok(unsafe { FileDesc::from_raw_fd(twizzler_rt_abi::fd::twz_rt_fd_dup(self.fd.as_raw_fd())?) })
     }
 
     pub fn duplicate_path(&self, _path: &[u8]) -> io::Result<FileDesc> {

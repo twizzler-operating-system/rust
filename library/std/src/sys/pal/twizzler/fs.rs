@@ -228,7 +228,7 @@ impl File {
     }
 
     pub fn open_c(path: &CStr, _opts: &OpenOptions) -> io::Result<File> {
-        let fd = twizzler_rt_abi::fd::twz_rt_fd_open(path)?;
+        let fd = twizzler_rt_abi::fd::twz_rt_fd_copen(path)?;
         Ok(File(unsafe { FileDesc::from_raw_fd(fd) }))
     }
 
@@ -411,5 +411,18 @@ impl IntoRawFd for File {
 impl FromRawFd for File {
     unsafe fn from_raw_fd(raw_fd: RawFd) -> Self {
         Self(FromRawFd::from_raw_fd(raw_fd))
+    }
+}
+
+use twizzler_rt_abi::fd::OpenError;
+#[stable(feature = "twizzler_io", since = "1.0")]
+impl From<OpenError> for io::Error {
+    fn from(value: OpenError) -> Self {
+        let kind = match value {
+            OpenError::Other => io::ErrorKind::Other,
+        };
+
+
+        io::Error::new(kind, Box::new(value))
     }
 }
