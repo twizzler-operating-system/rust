@@ -28,7 +28,7 @@ impl Thread {
             Ok(Thread { internal_id })
         } else {
             drop(Box::from_raw(p));
-            Err(io::const_io_error!(io::ErrorKind::Uncategorized, &"Unable to create thread!"))
+            Err(io::const_io_error!(io::ErrorKind::Uncategorized, &"unable to create thread"))
         };
 
         unsafe extern "C" fn thread_start(main: usize) -> ! {
@@ -68,6 +68,6 @@ impl Thread {
 
 pub fn available_parallelism() -> io::Result<NonZeroUsize> {
     let info = twizzler_rt_abi::info::twz_rt_get_sysinfo();
-    Ok(info.available_parallelism.try_into()?)
+    Ok(info.available_parallelism.try_into().unwrap_or(NonZeroUsize::new(1).unwrap()))
 }
 

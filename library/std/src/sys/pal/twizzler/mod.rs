@@ -13,6 +13,7 @@ pub mod os;
 pub mod pipe;
 #[path = "../unsupported/process.rs"]
 pub mod process;
+#[path = "../unix/stdio.rs"]
 pub mod stdio;
 pub mod thread;
 pub mod time;
