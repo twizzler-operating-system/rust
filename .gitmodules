@@ -44,5 +44,5 @@
 	branch = twizzler-dynlink
 [submodule "library/backtrace"]
 	path = library/backtrace
-	url = git@github.com:twizzler-operating-system/backtrace-rs.git
+	url = https://github.com/twizzler-operating-system/backtrace-rs.git
 	branch = twizzler-dynlink
