@@ -14,11 +14,15 @@ unsafe impl GlobalAlloc for System {
 
     #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        twizzler_rt_abi::alloc::twz_rt_dealloc(ptr, layout, AllocFlags::empty());
+        unsafe {
+            twizzler_rt_abi::alloc::twz_rt_dealloc(ptr, layout, AllocFlags::empty());
+        }
     }
 
     #[inline]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        twizzler_rt_abi::alloc::twz_rt_realloc(ptr, layout, new_size, AllocFlags::empty()).expect("failed to reallocate memory")
+        unsafe {
+            twizzler_rt_abi::alloc::twz_rt_realloc(ptr, layout, new_size, AllocFlags::empty()).expect("failed to reallocate memory")
+        }
     }
 }
