@@ -53,6 +53,6 @@
 	url = https://github.com/rust-lang/gcc.git
 	shallow = true
 [submodule "libc"]
-	path = libc
+	path = library/libc
 	url = ../libc.git
 	branch = twizzler-2025-04

@@ -48,4 +48,4 @@ rustc-std-workspace-core = { path = 'rustc-std-workspace-core' }
 rustc-std-workspace-alloc = { path = 'rustc-std-workspace-alloc' }
 rustc-std-workspace-std = { path = 'rustc-std-workspace-std' }
 # TODO: remove after Twizzler early development.
-libc = { path = "../libc" }
+libc = { path = "./libc" }
