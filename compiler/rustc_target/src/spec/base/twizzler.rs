@@ -1,5 +1,5 @@
 use crate::spec::{
-    crt_objects, Cc, FramePointer, LinkArgs, LinkOutputKind, LinkerFlavor, Lld, PanicStrategy, TargetOptions, TlsModel
+    crt_objects, Cc, FramePointer, LinkArgs, LinkOutputKind, LinkerFlavor, Lld, PanicStrategy, TargetOptions, TlsModel, LinkSelfContainedDefault,
 };
 
 pub(crate) fn opts(static_only: bool) -> TargetOptions {
@@ -14,13 +14,13 @@ pub(crate) fn opts(static_only: bool) -> TargetOptions {
         linker: Some("rust-lld".into()),
         executables: true,
         pre_link_args,
-        pre_link_objects: crt_objects::new(&[
+        pre_link_objects_self_contained: crt_objects::new(&[
             (LinkOutputKind::DynamicNoPicExe, &["crti.o", "crtbegin.o"]),
             (LinkOutputKind::DynamicPicExe, &["crti.o", "crtbeginS.o"]),
             (LinkOutputKind::StaticNoPicExe, &["crti.o", "crtbegin.o"]),
             (LinkOutputKind::StaticPicExe, &["crti.o", "crtbeginS.o"]),
         ]),
-        post_link_objects: crt_objects::new(&[
+        post_link_objects_self_contained: crt_objects::new(&[
             (LinkOutputKind::DynamicNoPicExe, &["crtend.o", "crtn.o"]),
             (LinkOutputKind::DynamicPicExe, &["crtendS.o", "crtn.o"]),
             (LinkOutputKind::StaticNoPicExe, &["crtend.o", "crtn.o"]),
@@ -36,6 +36,7 @@ pub(crate) fn opts(static_only: bool) -> TargetOptions {
         dynamic_linking: !static_only,
         has_thread_local: true,
         frame_pointer: FramePointer::NonLeaf,
+        link_self_contained: LinkSelfContainedDefault::True,
         ..Default::default()
     }
 }
