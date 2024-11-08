@@ -1452,7 +1452,7 @@ impl Step for Libunwind {
                 let mut bootstrap_path = root.clone();
                 bootstrap_path.push("../../../../bootstrap-include");
                 cfg.include(bootstrap_path);
-                //cfg.flag("-fno-stack-protector");
+                cfg.flag("-fno-stack-protector");
                 cfg.define("__ELF__", None);
                 //cfg.define("NDEBUG", None);
                 //cfg.define("_LIBUNWIND_NO_HEAP", None);
