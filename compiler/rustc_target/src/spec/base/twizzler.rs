@@ -31,7 +31,7 @@ pub(crate) fn opts(static_only: bool) -> TargetOptions {
         static_position_independent_executables: !static_only,
         tls_model: if static_only { TlsModel::LocalExec } else { TlsModel::GeneralDynamic },
         crt_static_default: static_only,
-        crt_static_respected: false,
+        crt_static_respected: true,
         crt_static_allows_dylibs: !static_only,
         dynamic_linking: !static_only,
         has_thread_local: true,

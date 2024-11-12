@@ -420,6 +420,9 @@ impl From<OpenError> for io::Error {
     fn from(value: OpenError) -> Self {
         let kind = match value {
             OpenError::Other => io::ErrorKind::Other,
+            OpenError::LookupFail => io::ErrorKind::NotFound,
+            OpenError::PermissionDenied => io::ErrorKind::PermissionDenied,
+            OpenError::InvalidArgument => io::ErrorKind::InvalidInput,
         };
 
 
