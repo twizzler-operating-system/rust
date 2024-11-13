@@ -5,7 +5,6 @@ pub mod env;
 pub mod fd;
 pub mod fs;
 pub mod futex;
-#[path = "../unsupported/io.rs"]
 pub mod io;
 pub mod net;
 pub mod os;
