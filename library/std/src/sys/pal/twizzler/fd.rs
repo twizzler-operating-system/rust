@@ -24,7 +24,7 @@ pub struct FileDesc {
 
 impl FileDesc {
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-        let result = twizzler_rt_abi::io::twz_rt_fd_read(self.fd.as_raw_fd(), buf, IoFlags::empty())?;
+        let result = twizzler_rt_abi::io::twz_rt_fd_pread(self.fd.as_raw_fd(), None, buf, IoFlags::empty())?;
         Ok(result as usize)
     }
 
@@ -34,20 +34,28 @@ impl FileDesc {
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-        let result = twizzler_rt_abi::io::twz_rt_fd_write(self.fd.as_raw_fd(), buf, IoFlags::empty())?;
+        let result = twizzler_rt_abi::io::twz_rt_fd_pwrite(self.fd.as_raw_fd(), None, buf, IoFlags::empty())?;
         Ok(result as usize)
     }
 
-    pub fn read_buf(&mut self, _buf: BorrowedCursor<'_>) -> io::Result<()> {
-        todo!()
+    pub fn read_buf(&mut self, mut buf: BorrowedCursor<'_>) -> io::Result<()> {
+        let slice = unsafe { core::slice::from_raw_parts_mut(buf.as_mut().as_mut_ptr().cast(), buf.capacity()) };
+        let ret = twizzler_rt_abi::io::twz_rt_fd_pread(self.as_raw_fd(), None, slice, IoFlags::empty())?;
+        // Safety: `ret` bytes were written to the initialized portion of the buffer
+        unsafe {
+            buf.advance_unchecked(ret as usize);
+        }
+        Ok(())
     }
 
-    pub fn write_vectored(&mut self, _bufs: &[IoSlice<'_>]) -> io::Result<usize> {
-        todo!()
+    pub fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        let slice = unsafe { core::slice::from_raw_parts(bufs.as_ptr().cast(), bufs.len()) };
+        twizzler_rt_abi::io::twz_rt_fd_pwritev(self.as_raw_fd(), None, slice, IoFlags::empty()).map_err(|e| e.into())
     }
 
-    pub fn read_vectored(&mut self, _bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
-        todo!()
+    pub fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        let slice = unsafe { core::slice::from_raw_parts_mut(bufs.as_mut_ptr().cast(), bufs.len()) };
+        twizzler_rt_abi::io::twz_rt_fd_preadv(self.as_raw_fd(), None, slice, IoFlags::empty()).map_err(|e| e.into())
     }
 
     pub fn seek(&self, pos: SeekFrom) -> io::Result<u64> {
