@@ -52,15 +52,13 @@ pub unsafe fn init(argc: isize, argv: *const *const u8, _sigpipe: u8) {
 // NOTE: this is not guaranteed to run, for example when the program aborts.
 pub unsafe fn cleanup() {}
 
-// TODO: remove
 #[inline]
 pub(crate) fn is_interrupted(_errno: i32) -> bool {
     false
 }
 
-// TODO: remove
 pub fn decode_error_kind(_errno: i32) -> crate::io::ErrorKind {
-    unimplemented!()
+    crate::io::ErrorKind::Other
 }
 
 #[no_mangle]

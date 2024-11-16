@@ -81,7 +81,7 @@ hermit-abi = { version = "0.5.0", features = [
 twizzler-rt-abi = { path = "../twizzler-abis/rt-abi", features = ["rustc-dep-of-std"], public = true }
 
 [target.'cfg(all(any(target_arch = "x86_64", target_arch = "aarch64"), target_os = "twizzler"))'.dependencies.compiler_builtins]
-# TODO (dbittman): one of the features is "c", which enables optimized c impls for some builtins. But when I enable it,
+# TODO (twizzler): one of the features is "c", which enables optimized c impls for some builtins. But when we enable it,
 # we end up with things getting recompiled too often. Something to look into.
 features = ["mem"]
 version = "0.1.133"

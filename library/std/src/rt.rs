@@ -203,7 +203,7 @@ fn lang_start<T: crate::process::Termination + 'static>(
     )
 }
 
-// TODO(dbittman): Need to get rid of this once we solve the lang_item start problem.
+// TODO (twizzler): Need to get rid of this once we solve the lang_item start problem.
 // but this is future work.
 cfg_if::cfg_if! {
 if #[cfg(target_os = "twizzler")] {
@@ -221,8 +221,6 @@ pub extern "C" fn twizzler_call_lang_start(
 
 #[used]
 #[allow(improper_ctypes_definitions)]
-static USE_MARKER: extern "C" fn(fn(), isize, *const *const u8, u8) -> isize =
-    twizzler_call_lang_start;
-
+static USE_MARKER: extern "C" fn(fn(), isize, *const *const u8, u8) -> isize = twizzler_call_lang_start;
 }
 }
