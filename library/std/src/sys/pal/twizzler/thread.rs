@@ -54,8 +54,9 @@ impl Thread {
         twizzler_rt_abi::thread::twz_rt_sleep(dur);
     }
 
-    // TODO: return err
     pub fn join(self) {
+        // If join returns an error, then we'll just assume that thread has joined. Since this function
+        // doesn't timeout, that error case can't happen either.
         let _ = twizzler_rt_abi::thread::twz_rt_join_thread(self.internal_id, None);
     }
 
