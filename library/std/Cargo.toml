@@ -189,3 +189,6 @@ check-cfg = [
     'cfg(target_has_reliable_f128)',
     'cfg(target_has_reliable_f128_math)',
 ]
+
+[patch.crates-io]
+twizzler-rt-abi = { git = "https://github.com/twizzler-operating-system/abi" }
