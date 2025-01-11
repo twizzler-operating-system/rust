@@ -1,18 +1,19 @@
 #![allow(dead_code)]
 
+use core::ffi::CStr;
+
 use crate::ffi::OsString;
 use crate::fmt;
 use crate::hash::{Hash, Hasher};
-use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut, SeekFrom, Error};
+use crate::io::{self, BorrowedCursor, Error, IoSlice, IoSliceMut, SeekFrom};
 use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
-use crate::sys::common::small_c_string::run_path_with_cstr;
 use crate::path::{Path, PathBuf};
+use crate::sys::common::small_c_string::run_path_with_cstr;
+use crate::sys::fd::FileDesc;
 use crate::sys::time::SystemTime;
 use crate::sys::unsupported;
-use core::ffi::CStr;
-use crate::sys::fd::FileDesc;
-use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 pub use crate::sys_common::fs::{copy, exists};
+use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 
 #[derive(Debug)]
 pub struct File(FileDesc);
@@ -237,7 +238,8 @@ impl File {
     }
 
     pub fn fsync(&self) -> io::Result<()> {
-        Err(Error::from_raw_os_error(22))
+        twizzler_rt_abi::fd::twz_rt_fd_sync(self.as_raw_fd());
+        Ok(())
     }
 
     pub fn datasync(&self) -> io::Result<()> {
@@ -315,8 +317,11 @@ pub fn readdir(_p: &Path) -> io::Result<ReadDir> {
     unsupported()
 }
 
-pub fn unlink(_p: &Path) -> io::Result<()> {
-    unsupported()
+pub fn unlink(p: &Path) -> io::Result<()> {
+    let file = File::open(p, &OpenOptions::new())?;
+    let raw = file.into_raw_fd();
+    twizzler_rt_abi::fd::twz_rt_fd_del(raw);
+    Ok(())
 }
 
 pub fn rename(_old: &Path, _new: &Path) -> io::Result<()> {
@@ -424,7 +429,6 @@ impl From<OpenError> for io::Error {
             OpenError::PermissionDenied => io::ErrorKind::PermissionDenied,
             OpenError::InvalidArgument => io::ErrorKind::InvalidInput,
         };
-
 
         io::Error::new(kind, Box::new(value))
     }
