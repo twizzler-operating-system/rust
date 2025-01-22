@@ -33,8 +33,6 @@ pub struct OpenOptions {
     truncate: bool,
     create: bool,
     create_new: bool,
-    // system-specific
-    mode: i32,
 }
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -198,8 +196,6 @@ impl OpenOptions {
             truncate: false,
             create: false,
             create_new: false,
-            // system-specific
-            mode: 0o777,
         }
     }
 
@@ -211,6 +207,7 @@ impl OpenOptions {
     }
     pub fn append(&mut self, append: bool) {
         self.append = append;
+        self.write = true;
     }
     pub fn truncate(&mut self, truncate: bool) {
         self.truncate = truncate;
@@ -228,8 +225,29 @@ impl File {
         run_path_with_cstr(path, &|path| File::open_c(&path, opts))
     }
 
-    pub fn open_c(path: &CStr, _opts: &OpenOptions) -> io::Result<File> {
-        let fd = twizzler_rt_abi::fd::twz_rt_fd_copen(path)?;
+    pub fn open_c(path: &CStr, opts: &OpenOptions) -> io::Result<File> {
+        let kind = if opts.create_new {
+            twizzler_rt_abi::bindings::CREATE_KIND_NEW
+        } else if opts.create {
+            twizzler_rt_abi::bindings::CREATE_KIND_EITHER
+        } else {
+            twizzler_rt_abi::bindings::CREATE_KIND_EXISTING
+        };
+        let create = twizzler_rt_abi::bindings::create_options { kind };
+        let mut flags = 0;
+        if opts.read {
+            flags |= twizzler_rt_abi::bindings::OPEN_FLAG_READ;
+        }
+        if opts.write {
+            flags |= twizzler_rt_abi::bindings::OPEN_FLAG_WRITE;
+        }
+        if opts.append {
+            flags |= twizzler_rt_abi::bindings::OPEN_FLAG_TAIL;
+        }
+        if opts.truncate {
+            flags |= twizzler_rt_abi::bindings::OPEN_FLAG_TRUNCATE;
+        }
+        let fd = twizzler_rt_abi::fd::twz_rt_fd_copen(path, create, flags)?;
         Ok(File(unsafe { FileDesc::from_raw_fd(fd) }))
     }
 
