@@ -2,10 +2,11 @@
 
 use core::ffi::CStr;
 
+use twizzler_rt_abi::fd::{FdInfo, FdKind, NameEntry};
+use twizzler_rt_abi::object::ObjID;
+
 use crate::ffi::OsString;
-use crate::fmt;
-use crate::hash::{Hash, Hasher};
-use crate::io::{self, BorrowedCursor, Error, IoSlice, IoSliceMut, SeekFrom};
+use crate::io::{self, BorrowedCursor, Error, ErrorKind, IoSlice, IoSliceMut, SeekFrom};
 use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
 use crate::path::{Path, PathBuf};
 use crate::sys::common::small_c_string::run_path_with_cstr;
@@ -18,11 +19,38 @@ use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 #[derive(Debug)]
 pub struct File(FileDesc);
 
-pub struct FileAttr(!);
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct FileAttr {
+    sz: u64,
+    ty: FileType,
+    perms: FilePermissions,
+    times: FileTimes,
+    id: ObjID,
+}
 
-pub struct ReadDir(!);
+#[derive(Debug)]
+pub struct ReadDir {
+    file: FileDesc,
+    pos: usize,
+    buf: [NameEntry; 128],
+    bufpos: usize,
+    buflen: usize,
+}
 
-pub struct DirEntry(!);
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct DirEntry {
+    name: String,
+    meta: FileAttr,
+}
+
+impl From<NameEntry> for DirEntry {
+    fn from(value: NameEntry) -> Self {
+        Self {
+            name: String::from_utf8_lossy(&value.name).into_owned(),
+            meta: FileAttr::from(FdInfo::from(value.info)),
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct OpenOptions {
@@ -35,76 +63,75 @@ pub struct OpenOptions {
     create_new: bool,
 }
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Default)]
 pub struct FileTimes {}
 
-pub struct FilePermissions(!);
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Default)]
+pub struct FilePermissions(u32);
 
-pub struct FileType(!);
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub enum FileType {
+    Regular,
+    Directory,
+    SymLink,
+}
 
 #[derive(Debug)]
 pub struct DirBuilder {}
 
 impl FileAttr {
     pub fn size(&self) -> u64 {
-        self.0
+        self.sz
+    }
+
+    pub fn objid(&self) -> ObjID {
+        self.id
     }
 
     pub fn perm(&self) -> FilePermissions {
-        self.0
+        self.perms
     }
 
     pub fn file_type(&self) -> FileType {
-        self.0
+        self.ty
     }
 
     pub fn modified(&self) -> io::Result<SystemTime> {
-        self.0
+        unsupported()
     }
 
     pub fn accessed(&self) -> io::Result<SystemTime> {
-        self.0
+        unsupported()
     }
 
     pub fn created(&self) -> io::Result<SystemTime> {
-        self.0
+        unsupported()
     }
 }
 
-impl Clone for FileAttr {
-    fn clone(&self) -> FileAttr {
-        self.0
+impl From<FdInfo> for FileAttr {
+    fn from(value: FdInfo) -> Self {
+        Self {
+            sz: value.size,
+            ty: match value.kind {
+                FdKind::Regular => FileType::Regular,
+                FdKind::Directory => FileType::Directory,
+                FdKind::SymLink => FileType::SymLink,
+                _ => FileType::Regular, //TODO
+            },
+            perms: FilePermissions(0),
+            times: FileTimes {},
+            id: value.id.into(),
+        }
     }
 }
 
 impl FilePermissions {
     pub fn readonly(&self) -> bool {
-        self.0
+        false
     }
 
-    pub fn set_readonly(&mut self, _readonly: bool) {
-        self.0
-    }
-}
-
-impl Clone for FilePermissions {
-    fn clone(&self) -> FilePermissions {
-        self.0
-    }
-}
-
-impl PartialEq for FilePermissions {
-    fn eq(&self, _other: &FilePermissions) -> bool {
-        self.0
-    }
-}
-
-impl Eq for FilePermissions {}
-
-impl fmt::Debug for FilePermissions {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0
-    }
+    pub fn set_readonly(&mut self, _readonly: bool) {}
 }
 
 impl FileTimes {
@@ -114,49 +141,39 @@ impl FileTimes {
 
 impl FileType {
     pub fn is_dir(&self) -> bool {
-        self.0
+        matches!(self, FileType::Directory)
     }
 
     pub fn is_file(&self) -> bool {
-        self.0
+        matches!(self, FileType::Regular)
     }
 
     pub fn is_symlink(&self) -> bool {
-        self.0
+        matches!(self, FileType::SymLink)
     }
 }
 
-impl Clone for FileType {
-    fn clone(&self) -> FileType {
-        self.0
+impl ReadDir {
+    fn new(file: FileDesc) -> Self {
+        Self { file, pos: 0, bufpos: 0, buf: [NameEntry::default(); 128], buflen: 0 }
     }
-}
 
-impl Copy for FileType {}
-
-impl PartialEq for FileType {
-    fn eq(&self, _other: &FileType) -> bool {
-        self.0
-    }
-}
-
-impl Eq for FileType {}
-
-impl Hash for FileType {
-    fn hash<H: Hasher>(&self, _h: &mut H) {
-        self.0
-    }
-}
-
-impl fmt::Debug for FileType {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0
-    }
-}
-
-impl fmt::Debug for ReadDir {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0
+    fn read_next(&mut self) -> bool {
+        if let Some(count) = twizzler_rt_abi::fd::twz_rt_fd_enumerate_names(
+            self.file.as_raw_fd(),
+            &mut self.buf,
+            self.pos,
+        ) {
+            if count == 0 {
+                return false;
+            }
+            self.bufpos = 0;
+            self.buflen = count;
+            self.pos += count;
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -164,25 +181,33 @@ impl Iterator for ReadDir {
     type Item = io::Result<DirEntry>;
 
     fn next(&mut self) -> Option<io::Result<DirEntry>> {
-        self.0
+        if self.bufpos < self.buflen {
+            let de = DirEntry::from(self.buf[self.bufpos]);
+            self.bufpos += 1;
+            return Some(Ok(de));
+        }
+        if self.read_next() {
+            return self.next();
+        }
+        None
     }
 }
 
 impl DirEntry {
     pub fn path(&self) -> PathBuf {
-        self.0
+        self.name.clone().into()
     }
 
     pub fn file_name(&self) -> OsString {
-        self.0
+        self.name.clone().into()
     }
 
     pub fn metadata(&self) -> io::Result<FileAttr> {
-        self.0
+        Ok(self.meta)
     }
 
     pub fn file_type(&self) -> io::Result<FileType> {
-        self.0
+        Ok(self.metadata()?.ty)
     }
 }
 
@@ -252,7 +277,9 @@ impl File {
     }
 
     pub fn file_attr(&self) -> io::Result<FileAttr> {
-        Err(Error::from_raw_os_error(22))
+        let info = twizzler_rt_abi::fd::twz_rt_fd_get_info(self.as_raw_fd())
+            .ok_or(ErrorKind::Unsupported)?;
+        Ok(info.into())
     }
 
     pub fn fsync(&self) -> io::Result<()> {
@@ -331,8 +358,11 @@ impl DirBuilder {
     }
 }
 
-pub fn readdir(_p: &Path) -> io::Result<ReadDir> {
-    unsupported()
+pub fn readdir(p: &Path) -> io::Result<ReadDir> {
+    let mut open = OpenOptions::new();
+    open.read(true);
+    let file = File::open(p, &open)?;
+    Ok(ReadDir::new(file.0))
 }
 
 pub fn unlink(p: &Path) -> io::Result<()> {
@@ -374,12 +404,13 @@ pub fn link(_src: &Path, _dst: &Path) -> io::Result<()> {
     unsupported()
 }
 
-pub fn stat(_p: &Path) -> io::Result<FileAttr> {
-    unsupported()
+pub fn stat(p: &Path) -> io::Result<FileAttr> {
+    let file = File::open(p, &OpenOptions::new())?;
+    file.file_attr()
 }
 
-pub fn lstat(_p: &Path) -> io::Result<FileAttr> {
-    unsupported()
+pub fn lstat(p: &Path) -> io::Result<FileAttr> {
+    stat(p)
 }
 
 pub fn canonicalize(_p: &Path) -> io::Result<PathBuf> {
