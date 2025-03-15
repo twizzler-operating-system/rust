@@ -2,6 +2,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub mod ffi;
+pub mod fs;
 
 /// A prelude for conveniently writing platform-specific code.
 ///

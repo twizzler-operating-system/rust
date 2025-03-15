@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "twizzler-rt-abi"
-version = "0.99.0"
+version = "0.99.1"
 dependencies = [
  "bitflags",
  "compiler_builtins",

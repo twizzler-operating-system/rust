@@ -1,14 +1,12 @@
 #![unstable(reason = "not public", issue = "none", feature = "fd")]
 
-use crate::io::{self, Read, SeekFrom, IoSlice, IoSliceMut, BorrowedCursor};
-use crate::io::SeekFrom::{Start, Current, End};
+use twizzler_rt_abi::io::{IoError, IoFlags, SeekFrom as InnerSeek};
 
+use crate::io::SeekFrom::{Current, End, Start};
+use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut, Read, SeekFrom};
+use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::sys::unsupported;
-use crate::os::fd::{FromRawFd, OwnedFd, RawFd, AsRawFd, IntoRawFd, AsFd, BorrowedFd};
 use crate::sys_common::{AsInner, FromInner, IntoInner};
-
-use twizzler_rt_abi::io::{IoError, IoFlags};
-use twizzler_rt_abi::io::SeekFrom as InnerSeek;
 
 impl core::convert::From<IoError> for io::Error {
     fn from(_error: IoError) -> io::Error {
@@ -19,12 +17,13 @@ impl core::convert::From<IoError> for io::Error {
 // A abstraction that can do continious IO on a set of Twizzler objects
 #[derive(Debug)]
 pub struct FileDesc {
-    pub fd: OwnedFd
+    pub fd: OwnedFd,
 }
 
 impl FileDesc {
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-        let result = twizzler_rt_abi::io::twz_rt_fd_pread(self.fd.as_raw_fd(), None, buf, IoFlags::empty())?;
+        let result =
+            twizzler_rt_abi::io::twz_rt_fd_pread(self.fd.as_raw_fd(), None, buf, IoFlags::empty())?;
         Ok(result as usize)
     }
 
@@ -34,13 +33,21 @@ impl FileDesc {
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-        let result = twizzler_rt_abi::io::twz_rt_fd_pwrite(self.fd.as_raw_fd(), None, buf, IoFlags::empty())?;
+        let result = twizzler_rt_abi::io::twz_rt_fd_pwrite(
+            self.fd.as_raw_fd(),
+            None,
+            buf,
+            IoFlags::empty(),
+        )?;
         Ok(result as usize)
     }
 
     pub fn read_buf(&mut self, mut buf: BorrowedCursor<'_>) -> io::Result<()> {
-        let slice = unsafe { core::slice::from_raw_parts_mut(buf.as_mut().as_mut_ptr().cast(), buf.capacity()) };
-        let ret = twizzler_rt_abi::io::twz_rt_fd_pread(self.as_raw_fd(), None, slice, IoFlags::empty())?;
+        let slice = unsafe {
+            core::slice::from_raw_parts_mut(buf.as_mut().as_mut_ptr().cast(), buf.capacity())
+        };
+        let ret =
+            twizzler_rt_abi::io::twz_rt_fd_pread(self.as_raw_fd(), None, slice, IoFlags::empty())?;
         // Safety: `ret` bytes were written to the initialized portion of the buffer
         unsafe {
             buf.advance_unchecked(ret as usize);
@@ -50,12 +57,15 @@ impl FileDesc {
 
     pub fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         let slice = unsafe { core::slice::from_raw_parts(bufs.as_ptr().cast(), bufs.len()) };
-        twizzler_rt_abi::io::twz_rt_fd_pwritev(self.as_raw_fd(), None, slice, IoFlags::empty()).map_err(|e| e.into())
+        twizzler_rt_abi::io::twz_rt_fd_pwritev(self.as_raw_fd(), None, slice, IoFlags::empty())
+            .map_err(|e| e.into())
     }
 
     pub fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
-        let slice = unsafe { core::slice::from_raw_parts_mut(bufs.as_mut_ptr().cast(), bufs.len()) };
-        twizzler_rt_abi::io::twz_rt_fd_preadv(self.as_raw_fd(), None, slice, IoFlags::empty()).map_err(|e| e.into())
+        let slice =
+            unsafe { core::slice::from_raw_parts_mut(bufs.as_mut_ptr().cast(), bufs.len()) };
+        twizzler_rt_abi::io::twz_rt_fd_preadv(self.as_raw_fd(), None, slice, IoFlags::empty())
+            .map_err(|e| e.into())
     }
 
     pub fn seek(&self, pos: SeekFrom) -> io::Result<u64> {
@@ -70,7 +80,9 @@ impl FileDesc {
     }
 
     pub fn duplicate(&self) -> io::Result<FileDesc> {
-        Ok(unsafe { FileDesc::from_raw_fd(twizzler_rt_abi::fd::twz_rt_fd_dup(self.fd.as_raw_fd())?) })
+        Ok(unsafe {
+            FileDesc::from_raw_fd(twizzler_rt_abi::fd::twz_rt_fd_dup(self.fd.as_raw_fd())?)
+        })
     }
 
     pub fn duplicate_path(&self, _path: &[u8]) -> io::Result<FileDesc> {
@@ -89,7 +101,6 @@ impl FileDesc {
         unsupported()
     }
 }
-
 
 impl<'a> Read for &'a FileDesc {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
