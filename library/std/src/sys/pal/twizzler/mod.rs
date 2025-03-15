@@ -10,7 +10,6 @@ pub mod net;
 pub mod os;
 #[path = "../unsupported/pipe.rs"]
 pub mod pipe;
-#[path = "../unsupported/process.rs"]
 pub mod process;
 #[path = "../unix/stdio.rs"]
 pub mod stdio;
