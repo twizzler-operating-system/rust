@@ -4,7 +4,7 @@ use crate::time::Duration;
 pub struct Instant(Duration);
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct SystemTime(Duration);
+pub struct SystemTime(pub(crate) Duration);
 
 pub const UNIX_EPOCH: SystemTime = SystemTime(Duration::from_secs(0));
 

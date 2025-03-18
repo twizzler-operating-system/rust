@@ -11,6 +11,7 @@ use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
 use crate::path::{Path, PathBuf};
 use crate::sys::common::small_c_string::run_path_with_cstr;
 use crate::sys::fd::FileDesc;
+use crate::sys::pal::twizzler::time;
 use crate::sys::time::SystemTime;
 use crate::sys::unsupported;
 pub use crate::sys_common::fs::{copy, exists};
@@ -63,8 +64,18 @@ pub struct OpenOptions {
     create_new: bool,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Default)]
-pub struct FileTimes {}
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct FileTimes {
+    created: SystemTime,
+    modified: SystemTime,
+    accessed: SystemTime,
+}
+
+impl Default for FileTimes {
+    fn default() -> Self {
+        Self { created: time::UNIX_EPOCH, modified: time::UNIX_EPOCH, accessed: time::UNIX_EPOCH }
+    }
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Default)]
 pub struct FilePermissions(u32);
@@ -97,15 +108,15 @@ impl FileAttr {
     }
 
     pub fn modified(&self) -> io::Result<SystemTime> {
-        unsupported()
+        Ok(self.times.modified)
     }
 
     pub fn accessed(&self) -> io::Result<SystemTime> {
-        unsupported()
+        Ok(self.times.accessed)
     }
 
     pub fn created(&self) -> io::Result<SystemTime> {
-        unsupported()
+        Ok(self.times.created)
     }
 }
 
@@ -119,8 +130,12 @@ impl From<FdInfo> for FileAttr {
                 FdKind::SymLink => FileType::SymLink,
                 _ => FileType::Regular, //TODO
             },
-            perms: FilePermissions(0),
-            times: FileTimes {},
+            perms: FilePermissions(value.unix_mode),
+            times: FileTimes {
+                created: time::SystemTime(value.created),
+                accessed: time::SystemTime(value.accessed),
+                modified: time::SystemTime(value.modified),
+            },
             id: value.id.into(),
         }
     }
@@ -128,6 +143,7 @@ impl From<FdInfo> for FileAttr {
 
 impl FilePermissions {
     pub fn readonly(&self) -> bool {
+        // TODO
         false
     }
 
@@ -291,8 +307,10 @@ impl File {
         self.fsync()
     }
 
-    pub fn truncate(&self, _size: u64) -> io::Result<()> {
-        Err(Error::from_raw_os_error(22))
+    pub fn truncate(&self, size: u64) -> io::Result<()> {
+        twizzler_rt_abi::fd::twz_rt_fd_truncate(self.as_raw_fd(), size)
+            .map_err(|_| ErrorKind::Other)?;
+        Ok(())
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
@@ -336,7 +354,8 @@ impl File {
     }
 
     pub fn duplicate(&self) -> io::Result<File> {
-        Err(Error::from_raw_os_error(22))
+        let fd = twizzler_rt_abi::fd::twz_rt_fd_dup(self.as_raw_fd())?;
+        Ok(File(unsafe { FileDesc::from_raw_fd(fd) }))
     }
 
     pub fn set_permissions(&self, _perm: FilePermissions) -> io::Result<()> {
@@ -353,8 +372,11 @@ impl DirBuilder {
         DirBuilder {}
     }
 
-    pub fn mkdir(&self, _p: &Path) -> io::Result<()> {
-        unsupported()
+    pub fn mkdir(&self, p: &Path) -> io::Result<()> {
+        twizzler_rt_abi::fd::twz_rt_fd_mkns(
+            p.as_os_str().to_str().ok_or(ErrorKind::InvalidFilename)?,
+        )?;
+        Ok(())
     }
 }
 
@@ -366,13 +388,14 @@ pub fn readdir(p: &Path) -> io::Result<ReadDir> {
 }
 
 pub fn unlink(p: &Path) -> io::Result<()> {
-    let file = File::open(p, &OpenOptions::new())?;
-    let raw = file.into_raw_fd();
-    twizzler_rt_abi::fd::twz_rt_fd_del(raw);
+    twizzler_rt_abi::fd::twz_rt_fd_remove(
+        p.as_os_str().to_str().ok_or(ErrorKind::InvalidFilename)?,
+    )?;
     Ok(())
 }
 
 pub fn rename(_old: &Path, _new: &Path) -> io::Result<()> {
+    // TODO
     unsupported()
 }
 
@@ -380,24 +403,35 @@ pub fn set_perm(_p: &Path, _perm: FilePermissions) -> io::Result<()> {
     unsupported()
 }
 
-pub fn rmdir(_p: &Path) -> io::Result<()> {
-    unsupported()
+pub fn rmdir(p: &Path) -> io::Result<()> {
+    unlink(p)
 }
 
 pub fn remove_dir_all(_path: &Path) -> io::Result<()> {
     unsupported()
 }
 
-pub fn try_exists(_path: &Path) -> io::Result<bool> {
-    unsupported()
+pub fn try_exists(path: &Path) -> io::Result<bool> {
+    stat(path)?;
+    Ok(true)
 }
 
-pub fn readlink(_p: &Path) -> io::Result<PathBuf> {
-    unsupported()
+pub fn readlink(p: &Path) -> io::Result<PathBuf> {
+    let mut buf = [0; 4096];
+    let len = twizzler_rt_abi::fd::twz_rt_fd_readlink(
+        p.as_os_str().to_str().ok_or(ErrorKind::InvalidFilename)?,
+        &mut buf,
+    )?;
+    let s = crate::str::from_utf8(&buf[..len]).map_err(|_| ErrorKind::InvalidFilename)?;
+    Ok(PathBuf::from(s))
 }
 
-pub fn symlink(_original: &Path, _link: &Path) -> io::Result<()> {
-    unsupported()
+pub fn symlink(original: &Path, link: &Path) -> io::Result<()> {
+    twizzler_rt_abi::fd::twz_rt_fd_symlink(
+        link.as_os_str().to_str().ok_or(ErrorKind::InvalidFilename)?,
+        original.as_os_str().to_str().ok_or(ErrorKind::InvalidFilename)?,
+    )?;
+    Ok(())
 }
 
 pub fn link(_src: &Path, _dst: &Path) -> io::Result<()> {
@@ -413,8 +447,8 @@ pub fn lstat(p: &Path) -> io::Result<FileAttr> {
     stat(p)
 }
 
-pub fn canonicalize(_p: &Path) -> io::Result<PathBuf> {
-    unsupported()
+pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
+    Ok(PathBuf::from(p))
 }
 
 impl AsInner<FileDesc> for File {
