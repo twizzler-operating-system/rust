@@ -16,6 +16,7 @@ use crate::sys::time::SystemTime;
 use crate::sys::unsupported;
 pub use crate::sys_common::fs::{copy, exists};
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
+use crate::time::Duration;
 
 #[derive(Debug)]
 pub struct File(FileDesc);
@@ -27,6 +28,7 @@ pub struct FileAttr {
     perms: FilePermissions,
     times: FileTimes,
     id: ObjID,
+    mode: u32,
 }
 
 #[derive(Debug)]
@@ -118,6 +120,22 @@ impl FileAttr {
     pub fn created(&self) -> io::Result<SystemTime> {
         Ok(self.times.created)
     }
+
+    pub fn atime(&self) -> Duration {
+        self.times.accessed.0
+    }
+
+    pub fn mtime(&self) -> Duration {
+        self.times.modified.0
+    }
+
+    pub fn ctime(&self) -> Duration {
+        self.times.created.0
+    }
+
+    pub fn mode(&self) -> u32 {
+        self.mode
+    }
 }
 
 impl From<FdInfo> for FileAttr {
@@ -137,6 +155,7 @@ impl From<FdInfo> for FileAttr {
                 modified: time::SystemTime(value.modified),
             },
             id: value.id.into(),
+            mode: value.unix_mode,
         }
     }
 }
