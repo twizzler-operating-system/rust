@@ -12,6 +12,20 @@ pub trait MetadataExt {
     fn st_size(&self) -> u64;
     #[stable(feature = "metadata_ext2", since = "1.8.0")]
     fn st_objid(&self) -> twizzler_rt_abi::object::ObjID;
+    #[stable(feature = "metadata_ext2", since = "1.8.0")]
+    fn st_mode(&self) -> u32;
+    #[stable(feature = "metadata_ext2", since = "1.8.0")]
+    fn st_atime(&self) -> i64;
+    #[stable(feature = "metadata_ext2", since = "1.8.0")]
+    fn st_atime_nsec(&self) -> i64;
+    #[stable(feature = "metadata_ext2", since = "1.8.0")]
+    fn st_mtime(&self) -> i64;
+    #[stable(feature = "metadata_ext2", since = "1.8.0")]
+    fn st_mtime_nsec(&self) -> i64;
+    #[stable(feature = "metadata_ext2", since = "1.8.0")]
+    fn st_ctime(&self) -> i64;
+    #[stable(feature = "metadata_ext2", since = "1.8.0")]
+    fn st_ctime_nsec(&self) -> i64;
 }
 
 #[stable(feature = "metadata_ext", since = "1.1.0")]
@@ -22,5 +36,33 @@ impl MetadataExt for Metadata {
 
     fn st_objid(&self) -> twizzler_rt_abi::object::ObjID {
         self.as_inner().objid()
+    }
+
+    fn st_mode(&self) -> u32 {
+        self.as_inner().mode()
+    }
+
+    fn st_atime(&self) -> i64 {
+        self.as_inner().atime().as_secs() as i64
+    }
+
+    fn st_atime_nsec(&self) -> i64 {
+        self.as_inner().atime().as_nanos() as i64
+    }
+
+    fn st_mtime(&self) -> i64 {
+        self.as_inner().mtime().as_secs() as i64
+    }
+
+    fn st_mtime_nsec(&self) -> i64 {
+        self.as_inner().mtime().as_nanos() as i64
+    }
+
+    fn st_ctime(&self) -> i64 {
+        self.as_inner().ctime().as_secs() as i64
+    }
+
+    fn st_ctime_nsec(&self) -> i64 {
+        self.as_inner().ctime().as_nanos() as i64
     }
 }
