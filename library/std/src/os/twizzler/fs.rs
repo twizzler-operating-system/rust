@@ -11,7 +11,7 @@ pub trait MetadataExt {
     #[stable(feature = "metadata_ext2", since = "1.8.0")]
     fn st_size(&self) -> u64;
     #[stable(feature = "metadata_ext2", since = "1.8.0")]
-    fn st_objid(&self) -> twizzler_rt_abi::object::ObjID;
+    fn st_objid(&self) -> u128;
     #[stable(feature = "metadata_ext2", since = "1.8.0")]
     fn st_mode(&self) -> u32;
     #[stable(feature = "metadata_ext2", since = "1.8.0")]
@@ -34,8 +34,8 @@ impl MetadataExt for Metadata {
         self.as_inner().size()
     }
 
-    fn st_objid(&self) -> twizzler_rt_abi::object::ObjID {
-        self.as_inner().objid()
+    fn st_objid(&self) -> u128 {
+        self.as_inner().objid().raw()
     }
 
     fn st_mode(&self) -> u32 {
