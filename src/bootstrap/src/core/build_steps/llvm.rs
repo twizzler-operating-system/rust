@@ -1343,9 +1343,6 @@ impl Step for CrtBeginEnd {
 
         if self.target.contains("twizzler") {
             cfg.flag("-nostdlibinc");
-            //let mut bootstrap_path = root.clone();
-            //bootstrap_path.push("../../../../bootstrap-include");
-            //cfg.include(bootstrap_path);
         }
 
         let objs = cfg.compile_intermediates();
