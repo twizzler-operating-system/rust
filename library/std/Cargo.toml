@@ -176,5 +176,3 @@ check-cfg = [
     'cfg(feature, values(any()))',
 ]
 
-[patch.crates-io]
-twizzler-rt-abi = { git = "https://github.com/twizzler-operating-system/abi" }
