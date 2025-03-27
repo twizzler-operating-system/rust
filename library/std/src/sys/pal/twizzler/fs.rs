@@ -49,7 +49,7 @@ pub struct DirEntry {
 impl From<NameEntry> for DirEntry {
     fn from(value: NameEntry) -> Self {
         Self {
-            name: String::from_utf8_lossy(&value.name).into_owned(),
+            name: String::from_utf8_lossy(value.name_bytes()).into_owned(),
             meta: FileAttr::from(FdInfo::from(value.info)),
         }
     }
