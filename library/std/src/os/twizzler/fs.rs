@@ -1,6 +1,7 @@
 #![stable(feature = "metadata_ext", since = "1.1.0")]
 
 use crate::fs::Metadata;
+use crate::path::Path;
 use crate::sys_common::AsInner;
 
 /// OS-specific extensions to [`fs::Metadata`].
@@ -65,4 +66,9 @@ impl MetadataExt for Metadata {
     fn st_ctime_nsec(&self) -> i64 {
         self.as_inner().ctime().as_nanos() as i64
     }
+}
+
+#[stable(feature = "symlink", since = "1.1.0")]
+pub fn symlink<P: AsRef<Path>, Q: AsRef<Path>>(original: P, link: Q) -> crate::io::Result<()> {
+    crate::sys::fs::symlink(original.as_ref(), link.as_ref())
 }
