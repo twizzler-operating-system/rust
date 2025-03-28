@@ -31,28 +31,22 @@ pub struct FileAttr {
     mode: u32,
 }
 
+const NR_NAME_ENTRIES: usize = 128;
 #[derive(Debug)]
 pub struct ReadDir {
     file: FileDesc,
+    root: PathBuf,
     pos: usize,
-    buf: [NameEntry; 128],
+    buf: Box<[NameEntry; NR_NAME_ENTRIES]>,
     bufpos: usize,
     buflen: usize,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct DirEntry {
-    name: String,
+    name: PathBuf,
+    root: PathBuf,
     meta: FileAttr,
-}
-
-impl From<NameEntry> for DirEntry {
-    fn from(value: NameEntry) -> Self {
-        Self {
-            name: String::from_utf8_lossy(value.name_bytes()).into_owned(),
-            meta: FileAttr::from(FdInfo::from(value.info)),
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -189,14 +183,21 @@ impl FileType {
 }
 
 impl ReadDir {
-    fn new(file: FileDesc) -> Self {
-        Self { file, pos: 0, bufpos: 0, buf: [NameEntry::default(); 128], buflen: 0 }
+    fn new(file: FileDesc, root: PathBuf) -> Self {
+        Self {
+            file,
+            pos: 0,
+            bufpos: 0,
+            buf: Box::new([NameEntry::default(); 128]),
+            buflen: 0,
+            root,
+        }
     }
 
     fn read_next(&mut self) -> bool {
         if let Some(count) = twizzler_rt_abi::fd::twz_rt_fd_enumerate_names(
             self.file.as_raw_fd(),
-            &mut self.buf,
+            &mut *self.buf,
             self.pos,
         ) {
             if count == 0 {
@@ -217,7 +218,12 @@ impl Iterator for ReadDir {
 
     fn next(&mut self) -> Option<io::Result<DirEntry>> {
         if self.bufpos < self.buflen {
-            let de = DirEntry::from(self.buf[self.bufpos]);
+            let name_entry = self.buf[self.bufpos];
+            let de = DirEntry::new(
+                String::from_utf8_lossy(name_entry.name_bytes()).into_owned().into(),
+                FileAttr::from(FdInfo::from(name_entry.info)),
+                self.root.clone(),
+            );
             self.bufpos += 1;
             return Some(Ok(de));
         }
@@ -229,8 +235,12 @@ impl Iterator for ReadDir {
 }
 
 impl DirEntry {
+    fn new(name: PathBuf, meta: FileAttr, root: PathBuf) -> Self {
+        Self { name, meta, root }
+    }
+
     pub fn path(&self) -> PathBuf {
-        self.name.clone().into()
+        self.root.clone().join(self.name.clone())
     }
 
     pub fn file_name(&self) -> OsString {
@@ -403,7 +413,7 @@ pub fn readdir(p: &Path) -> io::Result<ReadDir> {
     let mut open = OpenOptions::new();
     open.read(true);
     let file = File::open(p, &open)?;
-    Ok(ReadDir::new(file.0))
+    Ok(ReadDir::new(file.0, p.to_owned()))
 }
 
 pub fn unlink(p: &Path) -> io::Result<()> {
