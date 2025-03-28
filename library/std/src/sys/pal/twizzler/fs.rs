@@ -58,6 +58,7 @@ pub struct OpenOptions {
     truncate: bool,
     create: bool,
     create_new: bool,
+    link: bool,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
@@ -266,6 +267,7 @@ impl OpenOptions {
             truncate: false,
             create: false,
             create_new: false,
+            link: false,
         }
     }
 
@@ -287,6 +289,9 @@ impl OpenOptions {
     }
     pub fn create_new(&mut self, create_new: bool) {
         self.create_new = create_new;
+    }
+    pub fn link(&mut self, link: bool) {
+        self.link = link;
     }
 }
 
@@ -316,6 +321,9 @@ impl File {
         }
         if opts.truncate {
             flags |= twizzler_rt_abi::bindings::OPEN_FLAG_TRUNCATE;
+        }
+        if opts.link {
+            flags |= twizzler_rt_abi::bindings::OPEN_FLAG_SYMLINK;
         }
         let fd = twizzler_rt_abi::fd::twz_rt_fd_copen(path, create, flags)?;
         Ok(File(unsafe { FileDesc::from_raw_fd(fd) }))
@@ -473,7 +481,10 @@ pub fn stat(p: &Path) -> io::Result<FileAttr> {
 }
 
 pub fn lstat(p: &Path) -> io::Result<FileAttr> {
-    stat(p)
+    let mut opts = OpenOptions::new();
+    opts.link(true);
+    let file = File::open(p, &opts)?;
+    file.file_attr()
 }
 
 pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
