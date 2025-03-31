@@ -466,7 +466,7 @@ fn copy_self_contained_objects(
         for &obj in &["crtbegin.o", "crtbeginS.o", "crtend.o", "crtendS.o"] {
             let src = crt_path.join(obj);
             let target = libdir_self_contained.join(obj);
-            builder.copy_link(&src, &target);
+            builder.copy_link(&src, &target, FileType::NativeLibrary);
             target_deps.push((target, DependencyType::TargetSelfContained));
         }
     }

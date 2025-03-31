@@ -10,7 +10,7 @@ cfg_select! {
         mod vxworks;
         use vxworks as imp;
     }
-    any(target_os = "espidf", target_os = "horizon", target_os = "vita", target_os = "nuttx") => {
+    any(target_os = "espidf", target_os = "horizon", target_os = "vita", target_os = "nuttx", target_os = "twizzler") => {
         mod unsupported;
         use unsupported as imp;
         pub use unsupported::output;

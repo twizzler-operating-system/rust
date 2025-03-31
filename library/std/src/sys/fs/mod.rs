@@ -33,6 +33,10 @@ cfg_select! {
         mod motor;
         use motor as imp;
     }
+    target_os = "twizzler" => {
+        mod twizzler;
+        pub use twizzler::*;
+    }
     target_os = "solid_asp3" => {
         mod solid;
         use solid as imp;

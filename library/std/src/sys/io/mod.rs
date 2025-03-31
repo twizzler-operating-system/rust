@@ -39,6 +39,9 @@ mod is_terminal {
             mod motor;
             pub use motor::*;
         }
+        target_os = "twizzler" => {
+            mod twizzler;
+            pub use twizzler::*;
         _ => {
             mod unsupported;
             pub use unsupported::*;

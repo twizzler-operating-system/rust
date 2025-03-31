@@ -3,6 +3,10 @@ cfg_select! {
         mod unix;
         use unix as imp;
     }
+    target_family = "twizzler" => {
+        mod unix;
+        use unix as imp;
+    }
     target_os = "windows" => {
         mod windows;
         use windows as imp;

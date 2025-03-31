@@ -42,7 +42,7 @@ impl FileDesc {
         Ok(result as usize)
     }
 
-    pub fn read_buf(&mut self, mut buf: BorrowedCursor<'_>) -> io::Result<()> {
+    pub fn read_buf(&self, mut buf: BorrowedCursor<'_>) -> io::Result<()> {
         let slice = unsafe {
             core::slice::from_raw_parts_mut(buf.as_mut().as_mut_ptr().cast(), buf.capacity())
         };
@@ -55,13 +55,13 @@ impl FileDesc {
         Ok(())
     }
 
-    pub fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         let slice = unsafe { core::slice::from_raw_parts(bufs.as_ptr().cast(), bufs.len()) };
         twizzler_rt_abi::io::twz_rt_fd_pwritev(self.as_raw_fd(), None, slice, IoFlags::empty())
             .map_err(|e| e.into())
     }
 
-    pub fn read_vectored(&mut self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
         let slice =
             unsafe { core::slice::from_raw_parts_mut(bufs.as_mut_ptr().cast(), bufs.len()) };
         twizzler_rt_abi::io::twz_rt_fd_preadv(self.as_raw_fd(), None, slice, IoFlags::empty())
@@ -99,6 +99,16 @@ impl FileDesc {
 
     pub fn set_nonblocking(&self, _nonblocking: bool) -> io::Result<()> {
         unsupported()
+    }
+
+    pub fn is_write_vectored(&self) -> bool {
+        // TODO: use twizzler vec io
+        false
+    }
+
+    pub fn is_read_vectored(&self) -> bool {
+        // TODO: use twizzler vec io
+        false
     }
 }
 
