@@ -8,7 +8,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_os = "vxworks")] {
         mod vxworks;
         use vxworks as imp;
-    } else if #[cfg(any(target_os = "espidf", target_os = "horizon", target_os = "vita", target_os = "nuttx"))] {
+    } else if #[cfg(any(target_os = "espidf", target_os = "horizon", target_os = "vita", target_os = "nuttx", target_os = "twizzler"))] {
         mod unsupported;
         use unsupported as imp;
     } else {

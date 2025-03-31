@@ -47,6 +47,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitflags"
+version = "2.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c8214115b7bf84099f1309324e63141d4c5d7cc26862f97a0a857dbefe165bd"
+dependencies = [
+ "compiler_builtins",
+ "rustc-std-workspace-core",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -158,8 +168,6 @@ dependencies = [
 [[package]]
 name = "libc"
 version = "0.2.171"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c19937216e9d3aa9956d9bb8dfc0b0c8beb6058fc4f7a4dc4d850edf86a237d6"
 dependencies = [
  "rustc-std-workspace-core",
 ]
@@ -413,12 +421,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "unicode-ident"
-version = "1.0.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a210d160f08b701c8721ba1c726c11662f877ea6b7094007e1ca9a1041945034"
-
-[[package]]
 name = "twizzler-rt-abi"
 version = "0.99.1"
 dependencies = [
@@ -435,6 +437,12 @@ dependencies = [
  "compiler_builtins",
  "rustc-std-workspace-core",
 ]
+
+[[package]]
+name = "unicode-ident"
+version = "1.0.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a210d160f08b701c8721ba1c726c11662f877ea6b7094007e1ca9a1041945034"
 
 [[package]]
 name = "unicode-width"

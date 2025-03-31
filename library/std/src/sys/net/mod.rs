@@ -30,6 +30,11 @@ cfg_if::cfg_if! {
             mod uefi;
             pub use uefi::*;
         }
+    } else if #[cfg(target_os = "twizzler")] {
+        mod connection {
+            mod twizzler;
+            pub use twizzler::*;
+        }
     } else {
         mod connection {
             mod unsupported;

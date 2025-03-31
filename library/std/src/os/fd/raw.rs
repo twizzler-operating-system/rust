@@ -8,10 +8,10 @@ use hermit_abi as libc;
 #[cfg(not(target_os = "trusty"))]
 use crate::fs;
 use crate::io;
-#[cfg(target_os = "hermit")]
-use crate::os::hermit::io::OwnedFd;
 #[cfg(target_os = "twizzler")]
 use crate::os::fd::OwnedFd;
+#[cfg(target_os = "hermit")]
+use crate::os::hermit::io::OwnedFd;
 #[cfg(not(any(target_os = "hermit", target_os = "twizzler")))]
 use crate::os::raw;
 #[cfg(all(doc, not(target_arch = "wasm32")))]
@@ -30,7 +30,6 @@ pub type RawFd = raw::c_int;
 #[stable(feature = "rust1", since = "1.0.0")]
 #[cfg(target_os = "hermit")]
 pub type RawFd = i32;
-#[rustc_allowed_through_unstable_modules]
 #[stable(feature = "rust1", since = "1.0.0")]
 #[cfg(target_os = "twizzler")]
 pub type RawFd = twizzler_rt_abi::fd::RawFd;

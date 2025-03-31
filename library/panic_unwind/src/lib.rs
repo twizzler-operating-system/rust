@@ -51,12 +51,8 @@ cfg_if::cfg_if! {
         target_os = "psp",
         target_os = "xous",
         target_os = "solid_asp3",
-<<<<<<< HEAD
         all(target_family = "unix", not(any(target_os = "espidf", target_os = "nuttx"))),
-=======
         target_os = "twizzler",
-        all(target_family = "unix", not(any(target_os = "espidf", target_os = "rtems", target_os = "nuttx"))),
->>>>>>> 237d7d23488 (Initial port of standard library to Twizzler.)
         all(target_vendor = "fortanix", target_env = "sgx"),
         target_family = "wasm",
     ))] {

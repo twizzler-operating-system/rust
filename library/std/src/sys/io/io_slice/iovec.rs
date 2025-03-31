@@ -2,6 +2,8 @@
 use hermit_abi::iovec;
 #[cfg(target_family = "unix")]
 use libc::iovec;
+#[cfg(target_os = "twizzler")]
+use twizzler_rt_abi::io::IoSlice as iovec;
 
 use crate::ffi::c_void;
 use crate::marker::PhantomData;

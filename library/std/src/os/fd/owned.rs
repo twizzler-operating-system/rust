@@ -12,7 +12,7 @@ use crate::mem::ManuallyDrop;
     target_arch = "wasm32",
     target_env = "sgx",
     target_os = "hermit",
-    target_os = "trusty"
+    target_os = "trusty",
     target_os = "twizzler"
 )))]
 use crate::sys::cvt;
@@ -96,7 +96,12 @@ impl OwnedFd {
 impl BorrowedFd<'_> {
     /// Creates a new `OwnedFd` instance that shares the same underlying file
     /// description as the existing `BorrowedFd` instance.
-    #[cfg(not(any(target_arch = "wasm32", target_os = "hermit", target_os = "trusty", target_os = "twizzler")))]
+    #[cfg(not(any(
+        target_arch = "wasm32",
+        target_os = "hermit",
+        target_os = "trusty",
+        target_os = "twizzler"
+    )))]
     #[stable(feature = "io_safety", since = "1.63.0")]
     pub fn try_clone_to_owned(&self) -> crate::io::Result<OwnedFd> {
         // We want to atomically duplicate this file descriptor and set the

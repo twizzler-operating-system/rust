@@ -1,17 +1,17 @@
 #[cfg(target_os = "hermit")]
 use hermit_abi::{EBADF, STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO};
-#[cfg(target_family = "unix")]
+#[cfg(any(target_family = "unix", target_os = "twizzler"))]
 use libc::{EBADF, STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO};
 
 use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut};
 use crate::mem::ManuallyDrop;
+#[cfg(target_os = "twizzler")]
+use crate::os::fd::FromRawFd;
 #[cfg(target_os = "hermit")]
 use crate::os::hermit::io::FromRawFd;
 #[cfg(target_family = "unix")]
 use crate::os::unix::io::FromRawFd;
 use crate::sys::fd::FileDesc;
-#[cfg(target_os = "twizzler")]
-use crate::os::fd::FromRawFd;
 
 pub struct Stdin;
 pub struct Stdout;

@@ -1,9 +1,9 @@
+use twizzler_rt_abi::thread::ThreadId;
+
 use crate::ffi::CStr;
 use crate::io;
 use crate::num::NonZeroUsize;
 use crate::time::Duration;
-
-use twizzler_rt_abi::{thread::{ThreadId}};
 
 pub struct Thread {
     internal_id: ThreadId,
@@ -18,22 +18,26 @@ impl Thread {
     // unsafe: see thread::Builder::spawn_unchecked for safety requirements
     pub unsafe fn new(stack: usize, p: Box<dyn FnOnce()>) -> io::Result<Thread> {
         let p = Box::into_raw(Box::new(p));
-        let internal_id = twizzler_rt_abi::thread::twz_rt_spawn_thread(twizzler_rt_abi::thread::ThreadSpawnArgs {
-            stack_size: stack,
-            start: thread_start as usize,
-            arg: p.expose_provenance(),
-        });
+        let internal_id = twizzler_rt_abi::thread::twz_rt_spawn_thread(
+            twizzler_rt_abi::thread::ThreadSpawnArgs {
+                stack_size: stack,
+                start: thread_start as usize,
+                arg: p.expose_provenance(),
+            },
+        );
 
         return if let Ok(internal_id) = internal_id {
             Ok(Thread { internal_id })
         } else {
             drop(Box::from_raw(p));
-            Err(io::const_io_error!(io::ErrorKind::Uncategorized, &"unable to create thread"))
+            Err(crate::io::Error::new(io::ErrorKind::Uncategorized, "unable to create thread"))
         };
 
         unsafe extern "C" fn thread_start(main: usize) -> ! {
             {
-                Box::from_raw(core::ptr::with_exposed_provenance::<Box<dyn FnOnce()>>(main).cast_mut())();
+                Box::from_raw(
+                    core::ptr::with_exposed_provenance::<Box<dyn FnOnce()>>(main).cast_mut(),
+                )();
                 // run all destructors
                 crate::sys::thread_local::destructors::run();
                 crate::rt::thread_cleanup();
@@ -71,4 +75,3 @@ pub fn available_parallelism() -> io::Result<NonZeroUsize> {
     let info = twizzler_rt_abi::info::twz_rt_get_sysinfo();
     Ok(info.available_parallelism.try_into().unwrap_or(NonZeroUsize::new(1).unwrap()))
 }
-

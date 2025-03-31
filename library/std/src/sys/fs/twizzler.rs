@@ -14,7 +14,6 @@ use crate::sys::fd::FileDesc;
 use crate::sys::pal::twizzler::time;
 use crate::sys::time::SystemTime;
 use crate::sys::unsupported;
-pub use crate::sys_common::fs::{copy, exists};
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 use crate::time::Duration;
 
@@ -555,4 +554,8 @@ impl From<OpenError> for io::Error {
 
         io::Error::new(kind, Box::new(value))
     }
+}
+
+pub fn anon_pipe() -> io::Result<(FileDesc, FileDesc)> {
+    unsupported()
 }

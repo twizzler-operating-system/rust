@@ -354,8 +354,11 @@ fn copy_third_party_objects(
 
     if target == "x86_64-fortanix-unknown-sgx"
         || builder.config.llvm_libunwind(target) == LlvmLibunwind::InTree
-            && (target.contains("linux") || target.contains("fuchsia")
-                || target.contains("aix") || target.contains("twizzler")) {
+            && (target.contains("linux")
+                || target.contains("fuchsia")
+                || target.contains("aix")
+                || target.contains("twizzler"))
+    {
         let libunwind_path =
             copy_llvm_libunwind(builder, target, &builder.sysroot_target_libdir(*compiler, target));
         target_deps.push((libunwind_path, DependencyType::Target));
@@ -452,7 +455,7 @@ fn copy_self_contained_objects(
         for &obj in &["crtbegin.o", "crtbeginS.o", "crtend.o", "crtendS.o"] {
             let src = crt_path.join(obj);
             let target = libdir_self_contained.join(obj);
-            builder.copy_link(&src, &target);
+            builder.copy_link(&src, &target, FileType::NativeLibrary);
             target_deps.push((target, DependencyType::TargetSelfContained));
         }
     }

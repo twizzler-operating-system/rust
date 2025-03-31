@@ -1,16 +1,14 @@
+use core::slice::memchr;
+
 use crate::collections::HashMap;
 use crate::error::Error as StdError;
 use crate::ffi::{CStr, OsStr, OsString};
-use crate::fmt;
-use crate::io;
 use crate::marker::PhantomData;
+use crate::os::twizzler::ffi::OsStringExt;
 use crate::path::{self, PathBuf};
-use crate::str;
 use crate::sync::Mutex;
 use crate::sys::unsupported;
-use crate::vec;
-use crate::os::twizzler::ffi::OsStringExt;
-use core::slice::memchr;
+use crate::{fmt, io, str, vec};
 
 pub fn errno() -> i32 {
     0
@@ -69,10 +67,9 @@ pub fn current_exe() -> io::Result<PathBuf> {
     unsupported()
 }
 
-
 static ENV: Mutex<Option<HashMap<OsString, OsString>>> = Mutex::new(None);
 
-pub fn init_environment(env: *const *const i8) {
+pub fn init_environment(env: *const *const u8) {
     let mut guard = ENV.lock().unwrap();
     let map = guard.insert(HashMap::new());
 

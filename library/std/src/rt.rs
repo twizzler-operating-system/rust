@@ -207,7 +207,7 @@ fn lang_start<T: crate::process::Termination + 'static>(
 // but this is future work.
 cfg_if::cfg_if! {
 if #[cfg(target_os = "twizzler")] {
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[unstable(feature = "none", issue = "none", reason = "none")]
 #[allow(improper_ctypes_definitions)]
 pub extern "C" fn twizzler_call_lang_start(

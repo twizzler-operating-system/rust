@@ -3,7 +3,8 @@
 cfg_if::cfg_if! {
     if #[cfg(any(
         target_family = "unix",
-        target_os = "hermit"
+        target_os = "hermit",
+        target_os = "twizzler"
     ))] {
         mod unix;
         pub use unix::*;
