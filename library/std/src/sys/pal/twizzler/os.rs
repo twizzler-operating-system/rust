@@ -4,6 +4,7 @@ use crate::collections::HashMap;
 use crate::error::Error as StdError;
 use crate::ffi::{CStr, OsStr, OsString};
 use crate::marker::PhantomData;
+use crate::os::raw::c_char;
 use crate::os::twizzler::ffi::OsStringExt;
 use crate::path::{self, PathBuf};
 use crate::sync::Mutex;
@@ -69,7 +70,7 @@ pub fn current_exe() -> io::Result<PathBuf> {
 
 static ENV: Mutex<Option<HashMap<OsString, OsString>>> = Mutex::new(None);
 
-pub fn init_environment(env: *const *const u8) {
+pub fn init_environment(env: *const *const c_char) {
     let mut guard = ENV.lock().unwrap();
     let map = guard.insert(HashMap::new());
 

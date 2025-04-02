@@ -97,6 +97,7 @@ impl UnixListener {
                 target_os = "espidf",
                 target_os = "horizon",
                 target_os = "linux",
+                target_os = "twizzler",
                 target_os = "freebsd",
                 target_os = "openbsd",
                 target_vendor = "apple",

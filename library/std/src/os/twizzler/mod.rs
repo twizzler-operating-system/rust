@@ -13,12 +13,3 @@ pub mod prelude {
     #[stable(feature = "rust1", since = "1.0.0")]
     pub use super::ffi::{OsStrExt, OsStringExt};
 }
-
-#[stable(feature = "io_safety", since = "1.63.0")]
-impl From<crate::os::fd::OwnedFd> for crate::process::Stdio {
-    #[inline]
-    fn from(_fd: crate::os::fd::OwnedFd) -> crate::process::Stdio {
-        // TODO
-        Self::inherit()
-    }
-}

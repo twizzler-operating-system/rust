@@ -79,6 +79,10 @@ impl FileDesc {
         Ok(result as u64)
     }
 
+    pub fn tell(&self) -> io::Result<u64> {
+        self.seek(SeekFrom::Current(0))
+    }
+
     pub fn duplicate(&self) -> io::Result<FileDesc> {
         Ok(unsafe {
             FileDesc::from_raw_fd(twizzler_rt_abi::fd::twz_rt_fd_dup(self.fd.as_raw_fd())?)
@@ -109,6 +113,10 @@ impl FileDesc {
     pub fn is_read_vectored(&self) -> bool {
         // TODO: use twizzler vec io
         false
+    }
+
+    pub fn try_clone(&self) -> io::Result<Self> {
+        self.duplicate()
     }
 }
 

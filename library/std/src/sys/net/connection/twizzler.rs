@@ -1,9 +1,9 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use super::fd::FileDesc;
-use crate::os::fd::{RawFd, AsFd, BorrowedFd, AsRawFd};
-use crate::sys_common::{AsInner, IntoInner, FromInner};
+use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
+use crate::sys::fd::FileDesc;
+use crate::sys_common::{AsInner, FromInner, IntoInner};
 
 #[derive(Debug)]
 pub struct Socket(FileDesc);
@@ -166,7 +166,6 @@ impl AsRawFd for Socket {
     }
 }
 
-
 use crate::fmt;
 use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut};
 use crate::net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr};
@@ -183,7 +182,7 @@ impl TcpStream {
     pub fn into_socket(self) -> Socket {
         unimplemented!()
     }
-        
+
     pub fn connect(_: io::Result<&SocketAddr>) -> io::Result<TcpStream> {
         unsupported()
     }

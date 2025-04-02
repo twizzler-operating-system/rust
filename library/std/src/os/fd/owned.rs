@@ -210,7 +210,7 @@ impl Drop for OwnedFd {
             let _ = hermit_abi::close(self.fd.as_inner());
         }
         #[cfg(target_os = "twizzler")]
-        let _ = twizzler_rt_abi::fd::twz_rt_fd_close(self.fd);
+        let _ = twizzler_rt_abi::fd::twz_rt_fd_close(self.fd.as_inner());
     }
 }
 

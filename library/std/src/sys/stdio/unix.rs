@@ -94,12 +94,7 @@ impl io::Write for Stderr {
     }
 }
 
-#[cfg(target_os = "twizzler")]
-pub fn is_ebadf(_err: &io::Error) -> bool {
-    false
-}
-
-#[cfg(unix)]
+#[cfg(any(unix, target_os = "twizzler"))]
 pub fn is_ebadf(err: &io::Error) -> bool {
     err.raw_os_error() == Some(EBADF as i32)
 }
