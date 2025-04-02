@@ -11,9 +11,9 @@ use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
 use crate::path::{Path, PathBuf};
 use crate::sys::common::small_c_string::run_path_with_cstr;
 use crate::sys::fd::FileDesc;
-use crate::sys::pal::twizzler::time;
+pub use crate::sys::fs::common::{copy, exists};
 use crate::sys::time::SystemTime;
-use crate::sys::unsupported;
+use crate::sys::{time, unsupported};
 use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
 use crate::time::Duration;
 
@@ -389,6 +389,10 @@ impl File {
         self.0.seek(pos)
     }
 
+    pub fn tell(&self) -> io::Result<u64> {
+        self.0.tell()
+    }
+
     pub fn duplicate(&self) -> io::Result<File> {
         let fd = twizzler_rt_abi::fd::twz_rt_fd_dup(self.as_raw_fd())?;
         Ok(File(unsafe { FileDesc::from_raw_fd(fd) }))
@@ -400,6 +404,26 @@ impl File {
 
     pub fn set_times(&self, _times: FileTimes) -> io::Result<()> {
         Err(Error::from_raw_os_error(22))
+    }
+
+    pub fn lock(&self) -> io::Result<()> {
+        unsupported()
+    }
+
+    pub fn lock_shared(&self) -> io::Result<()> {
+        unsupported()
+    }
+
+    pub fn try_lock(&self) -> io::Result<bool> {
+        unsupported()
+    }
+
+    pub fn try_lock_shared(&self) -> io::Result<bool> {
+        unsupported()
+    }
+
+    pub fn unlock(&self) -> io::Result<()> {
+        unsupported()
     }
 }
 
@@ -537,7 +561,7 @@ impl IntoRawFd for File {
 
 impl FromRawFd for File {
     unsafe fn from_raw_fd(raw_fd: RawFd) -> Self {
-        Self(FromRawFd::from_raw_fd(raw_fd))
+        Self(unsafe { FromRawFd::from_raw_fd(raw_fd) })
     }
 }
 

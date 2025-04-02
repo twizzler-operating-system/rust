@@ -3,10 +3,7 @@ use crate::os::raw::c_char;
 pub mod args;
 pub mod env;
 pub mod fd;
-pub mod fs;
 pub mod futex;
-pub mod io;
-pub mod net;
 pub mod os;
 pub mod pipe;
 pub mod thread;
@@ -66,12 +63,12 @@ pub unsafe extern "C" fn std_entry_from_runtime(
         fn main(argc: isize, argv: *const *const c_char) -> i32;
     }
 
-    crate::sys::os::init_environment(aux.env as *const *const u8);
+    crate::sys::os::init_environment(aux.env as *const *const _);
     // If pre_main_hook returns a code, then don't call main and exit with that code instead.
     let code = if let Some(pre_code) = twizzler_rt_abi::core::twz_rt_pre_main_hook() {
         pre_code
     } else {
-        main(aux.argc as isize, aux.args as *const *const u8)
+        main(aux.argc as isize, aux.args as *const *const _)
     };
     twizzler_rt_abi::core::twz_rt_post_main_hook();
 
@@ -81,4 +78,58 @@ pub unsafe extern "C" fn std_entry_from_runtime(
     crate::rt::thread_cleanup();
 
     twizzler_rt_abi::core::BasicReturn { code }
+}
+
+#[doc(hidden)]
+#[allow(dead_code)]
+pub trait IsNegative {
+    fn is_negative(&self) -> bool;
+    fn negate(&self) -> i32;
+}
+
+macro_rules! impl_is_negative {
+    ($($t:ident)*) => ($(impl IsNegative for $t {
+        fn is_negative(&self) -> bool {
+            *self < 0
+        }
+
+        fn negate(&self) -> i32 {
+            i32::try_from(-(*self)).unwrap()
+        }
+    })*)
+}
+
+impl IsNegative for i32 {
+    fn is_negative(&self) -> bool {
+        *self < 0
+    }
+
+    fn negate(&self) -> i32 {
+        -(*self)
+    }
+}
+impl_is_negative! { i8 i16 i64 isize }
+
+#[allow(dead_code)]
+pub fn cvt<T: IsNegative>(t: T) -> crate::io::Result<T> {
+    if t.is_negative() {
+        let e = decode_error_kind(t.negate());
+        Err(crate::io::Error::from(e))
+    } else {
+        Ok(t)
+    }
+}
+
+#[allow(dead_code)]
+pub fn cvt_r<T, F>(mut f: F) -> crate::io::Result<T>
+where
+    T: IsNegative,
+    F: FnMut() -> T,
+{
+    loop {
+        match cvt(f()) {
+            Err(ref e) if e.is_interrupted() => {}
+            other => return other,
+        }
+    }
 }
