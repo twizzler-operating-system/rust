@@ -1,18 +1,12 @@
 #![unstable(reason = "not public", issue = "none", feature = "fd")]
 
-use twizzler_rt_abi::io::{IoError, IoFlags, SeekFrom as InnerSeek};
+use twizzler_rt_abi::io::{IoFlags, SeekFrom as InnerSeek};
 
 use crate::io::SeekFrom::{Current, End, Start};
 use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut, Read, SeekFrom};
 use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::sys::unsupported;
 use crate::sys_common::{AsInner, FromInner, IntoInner};
-
-impl core::convert::From<IoError> for io::Error {
-    fn from(_error: IoError) -> io::Error {
-        todo!()
-    }
-}
 
 // A abstraction that can do continious IO on a set of Twizzler objects
 #[derive(Debug)]

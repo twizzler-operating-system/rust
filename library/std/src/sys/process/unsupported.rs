@@ -141,6 +141,13 @@ impl From<crate::sys::fd::FileDesc> for Stdio {
     }
 }
 
+#[cfg(target_os = "twizzler")]
+impl From<crate::os::fd::OwnedFd> for Stdio {
+    fn from(_file: crate::os::fd::OwnedFd) -> Stdio {
+        todo!()
+    }
+}
+
 impl fmt::Debug for Command {
     // show all attributes
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

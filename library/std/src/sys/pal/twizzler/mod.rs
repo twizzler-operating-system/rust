@@ -133,3 +133,107 @@ where
         }
     }
 }
+
+use twizzler_rt_abi::error::*;
+
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<TwzError> for crate::io::Error {
+    fn from(value: TwzError) -> Self {
+        let kind: crate::io::ErrorKind = value.into();
+        kind.into()
+    }
+}
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<TwzError> for crate::io::ErrorKind {
+    fn from(value: TwzError) -> Self {
+        match value {
+            TwzError::Uncategorized(code) => decode_error_kind(code as i32),
+            TwzError::Generic(generic_error) => generic_error.into(),
+            TwzError::Argument(argument_error) => argument_error.into(),
+            TwzError::Resource(resource_error) => resource_error.into(),
+            TwzError::Object(object_error) => object_error.into(),
+            TwzError::Io(io_error) => io_error.into(),
+            TwzError::Naming(naming_error) => naming_error.into(),
+        }
+    }
+}
+
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<GenericError> for crate::io::ErrorKind {
+    fn from(value: GenericError) -> Self {
+        match value {
+            GenericError::NotSupported => crate::io::ErrorKind::Unsupported,
+            GenericError::Internal => crate::io::ErrorKind::Other,
+            GenericError::WouldBlock => crate::io::ErrorKind::WouldBlock,
+            GenericError::TimedOut => crate::io::ErrorKind::TimedOut,
+            GenericError::AccessDenied => crate::io::ErrorKind::PermissionDenied,
+            GenericError::NoSuchOperation => crate::io::ErrorKind::Unsupported,
+        }
+    }
+}
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<ArgumentError> for crate::io::ErrorKind {
+    fn from(value: ArgumentError) -> Self {
+        match value {
+            ArgumentError::InvalidArgument => crate::io::ErrorKind::InvalidInput,
+            ArgumentError::WrongType => crate::io::ErrorKind::InvalidInput,
+            ArgumentError::InvalidAddress => crate::io::ErrorKind::InvalidInput,
+            ArgumentError::BadHandle => crate::io::ErrorKind::InvalidInput,
+        }
+    }
+}
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<ResourceError> for crate::io::ErrorKind {
+    fn from(value: ResourceError) -> Self {
+        match value {
+            ResourceError::OutOfMemory => crate::io::ErrorKind::OutOfMemory,
+            ResourceError::OutOfResources => crate::io::ErrorKind::Other,
+            ResourceError::OutOfNames => crate::io::ErrorKind::Other,
+            ResourceError::Unavailable => crate::io::ErrorKind::ResourceBusy,
+        }
+    }
+}
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<ObjectError> for crate::io::ErrorKind {
+    fn from(value: ObjectError) -> Self {
+        match value {
+            ObjectError::MapFailed => crate::io::ErrorKind::Other,
+            ObjectError::NotMapped => crate::io::ErrorKind::Other,
+            ObjectError::InvalidFote => crate::io::ErrorKind::Other,
+            ObjectError::InvalidPtr => crate::io::ErrorKind::Other,
+            ObjectError::InvalidMeta => crate::io::ErrorKind::Other,
+            ObjectError::BaseTypeMismatch => crate::io::ErrorKind::Other,
+            ObjectError::NoSuchObject => crate::io::ErrorKind::NotFound,
+        }
+    }
+}
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<IoError> for crate::io::ErrorKind {
+    fn from(value: IoError) -> Self {
+        match value {
+            IoError::Other => crate::io::ErrorKind::Other,
+            IoError::DataLoss => crate::io::ErrorKind::Other,
+            IoError::DeviceError => crate::io::ErrorKind::Other,
+            IoError::SeekFailed => crate::io::ErrorKind::Other,
+        }
+    }
+}
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<NamingError> for crate::io::ErrorKind {
+    fn from(value: NamingError) -> Self {
+        match value {
+            NamingError::NotFound => crate::io::ErrorKind::NotFound,
+            NamingError::AlreadyExists => crate::io::ErrorKind::AlreadyExists,
+            NamingError::WrongNameKind => crate::io::ErrorKind::InvalidInput,
+            NamingError::AlreadyBound => crate::io::ErrorKind::AddrInUse,
+            NamingError::LinkLoop => crate::io::ErrorKind::FilesystemLoop,
+            NamingError::NotEmpty => crate::io::ErrorKind::DirectoryNotEmpty,
+        }
+    }
+}
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<RawTwzError> for crate::io::ErrorKind {
+    fn from(value: RawTwzError) -> Self {
+        value.error().into()
+    }
+}
