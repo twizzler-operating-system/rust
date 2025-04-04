@@ -195,7 +195,7 @@ impl ReadDir {
     }
 
     fn read_next(&mut self) -> bool {
-        if let Some(count) = twizzler_rt_abi::fd::twz_rt_fd_enumerate_names(
+        if let Ok(count) = twizzler_rt_abi::fd::twz_rt_fd_enumerate_names(
             self.file.as_raw_fd(),
             &mut *self.buf,
             self.pos,
@@ -329,8 +329,7 @@ impl File {
     }
 
     pub fn file_attr(&self) -> io::Result<FileAttr> {
-        let info = twizzler_rt_abi::fd::twz_rt_fd_get_info(self.as_raw_fd())
-            .ok_or(ErrorKind::Unsupported)?;
+        let info = twizzler_rt_abi::fd::twz_rt_fd_get_info(self.as_raw_fd())?;
         Ok(info.into())
     }
 
@@ -562,21 +561,6 @@ impl IntoRawFd for File {
 impl FromRawFd for File {
     unsafe fn from_raw_fd(raw_fd: RawFd) -> Self {
         Self(unsafe { FromRawFd::from_raw_fd(raw_fd) })
-    }
-}
-
-use twizzler_rt_abi::fd::OpenError;
-#[stable(feature = "twizzler_io", since = "1.0")]
-impl From<OpenError> for io::Error {
-    fn from(value: OpenError) -> Self {
-        let kind = match value {
-            OpenError::Other => io::ErrorKind::Other,
-            OpenError::LookupFail => io::ErrorKind::NotFound,
-            OpenError::PermissionDenied => io::ErrorKind::PermissionDenied,
-            OpenError::InvalidArgument => io::ErrorKind::InvalidInput,
-        };
-
-        io::Error::new(kind, Box::new(value))
     }
 }
 
