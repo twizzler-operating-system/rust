@@ -143,6 +143,7 @@ impl From<TwzError> for crate::io::Error {
         kind.into()
     }
 }
+
 #[stable(feature = "rust1", since = "1.0.0")]
 impl From<TwzError> for crate::io::ErrorKind {
     fn from(value: TwzError) -> Self {

@@ -1,6 +1,6 @@
 #![unstable(reason = "not public", issue = "none", feature = "fd")]
 
-use twizzler_rt_abi::io::{IoFlags, SeekFrom as InnerSeek};
+use twizzler_rt_abi::io::SeekFrom as InnerSeek;
 
 use crate::io::SeekFrom::{Current, End, Start};
 use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut, Read, SeekFrom};
@@ -16,8 +16,8 @@ pub struct FileDesc {
 
 impl FileDesc {
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-        let result =
-            twizzler_rt_abi::io::twz_rt_fd_pread(self.fd.as_raw_fd(), None, buf, IoFlags::empty())?;
+        let mut ctx = twizzler_rt_abi::io::IoCtx::default();
+        let result = twizzler_rt_abi::io::twz_rt_fd_pread(self.fd.as_raw_fd(), buf, &mut ctx)?;
         Ok(result as usize)
     }
 
@@ -27,12 +27,8 @@ impl FileDesc {
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-        let result = twizzler_rt_abi::io::twz_rt_fd_pwrite(
-            self.fd.as_raw_fd(),
-            None,
-            buf,
-            IoFlags::empty(),
-        )?;
+        let mut ctx = twizzler_rt_abi::io::IoCtx::default();
+        let result = twizzler_rt_abi::io::twz_rt_fd_pwrite(self.fd.as_raw_fd(), buf, &mut ctx)?;
         Ok(result as usize)
     }
 
@@ -40,8 +36,8 @@ impl FileDesc {
         let slice = unsafe {
             core::slice::from_raw_parts_mut(buf.as_mut().as_mut_ptr().cast(), buf.capacity())
         };
-        let ret =
-            twizzler_rt_abi::io::twz_rt_fd_pread(self.as_raw_fd(), None, slice, IoFlags::empty())?;
+        let mut ctx = twizzler_rt_abi::io::IoCtx::default();
+        let ret = twizzler_rt_abi::io::twz_rt_fd_pread(self.as_raw_fd(), slice, &mut ctx)?;
         // Safety: `ret` bytes were written to the initialized portion of the buffer
         unsafe {
             buf.advance_unchecked(ret as usize);
@@ -50,15 +46,17 @@ impl FileDesc {
     }
 
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        let mut ctx = twizzler_rt_abi::io::IoCtx::default();
         let slice = unsafe { core::slice::from_raw_parts(bufs.as_ptr().cast(), bufs.len()) };
-        twizzler_rt_abi::io::twz_rt_fd_pwritev(self.as_raw_fd(), None, slice, IoFlags::empty())
+        twizzler_rt_abi::io::twz_rt_fd_pwritev(self.as_raw_fd(), slice, &mut ctx)
             .map_err(|e| e.into())
     }
 
     pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        let mut ctx = twizzler_rt_abi::io::IoCtx::default();
         let slice =
             unsafe { core::slice::from_raw_parts_mut(bufs.as_mut_ptr().cast(), bufs.len()) };
-        twizzler_rt_abi::io::twz_rt_fd_preadv(self.as_raw_fd(), None, slice, IoFlags::empty())
+        twizzler_rt_abi::io::twz_rt_fd_preadv(self.as_raw_fd(), slice, &mut ctx)
             .map_err(|e| e.into())
     }
 
