@@ -140,7 +140,7 @@ use twizzler_rt_abi::error::*;
 impl From<TwzError> for crate::io::Error {
     fn from(value: TwzError) -> Self {
         let kind: crate::io::ErrorKind = value.into();
-        kind.into()
+        Self::new(kind, value)
     }
 }
 
@@ -169,6 +169,9 @@ impl From<GenericError> for crate::io::ErrorKind {
             GenericError::TimedOut => crate::io::ErrorKind::TimedOut,
             GenericError::AccessDenied => crate::io::ErrorKind::PermissionDenied,
             GenericError::NoSuchOperation => crate::io::ErrorKind::Unsupported,
+            GenericError::Other => crate::io::ErrorKind::Unsupported,
+            GenericError::Interrupted => crate::io::ErrorKind::Interrupted,
+            GenericError::InProgress => crate::io::ErrorKind::InProgress,
         }
     }
 }
@@ -191,6 +194,11 @@ impl From<ResourceError> for crate::io::ErrorKind {
             ResourceError::OutOfResources => crate::io::ErrorKind::Other,
             ResourceError::OutOfNames => crate::io::ErrorKind::Other,
             ResourceError::Unavailable => crate::io::ErrorKind::ResourceBusy,
+            ResourceError::Busy => crate::io::ErrorKind::ResourceBusy,
+            ResourceError::NotConnected => crate::io::ErrorKind::NotConnected,
+            ResourceError::Unreachable => crate::io::ErrorKind::HostUnreachable,
+            ResourceError::Refused => crate::io::ErrorKind::ConnectionRefused,
+            ResourceError::NonAtomic => crate::io::ErrorKind::Other,
         }
     }
 }
@@ -216,6 +224,7 @@ impl From<IoError> for crate::io::ErrorKind {
             IoError::DataLoss => crate::io::ErrorKind::Other,
             IoError::DeviceError => crate::io::ErrorKind::Other,
             IoError::SeekFailed => crate::io::ErrorKind::Other,
+            IoError::Reset => crate::io::ErrorKind::ConnectionReset,
         }
     }
 }
