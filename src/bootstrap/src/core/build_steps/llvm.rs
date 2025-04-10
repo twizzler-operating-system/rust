@@ -379,10 +379,6 @@ impl Step for Llvm {
             cfg.define("LLVM_ENABLE_ZLIB", "OFF");
         }
 
-        if self.target.contains("twizzler") {
-            cfg.cflag("-nostdlibinc");
-        }
-
         // Are we compiling for iOS/tvOS/watchOS/visionOS?
         if target.contains("apple-ios")
             || target.contains("apple-tvos")
@@ -663,6 +659,8 @@ fn configure_cmake(
             cfg.define("CMAKE_SYSTEM_NAME", "SunOS");
         } else if target.contains("linux") {
             cfg.define("CMAKE_SYSTEM_NAME", "Linux");
+        } else if target.contains("twizzler") {
+            cfg.define("CMAKE_SYSTEM_NAME", "Twizzler");
         } else {
             builder.info(&format!(
                 "could not determine CMAKE_SYSTEM_NAME from the target `{target}`, build may fail",
@@ -751,6 +749,13 @@ fn configure_cmake(
     if builder.config.llvm_clang_cl.is_some() {
         cflags.push(format!(" --target={target}"));
     }
+    if target.contains("twizzler") {
+        cflags.push(" -nostdlib");
+        let root = builder.src.join("src/llvm-project/libunwind");
+        let mut bootstrap_path = root.clone();
+        bootstrap_path.push("../../../../bootstrap-include");
+        cflags.push(format!(" -I {}", bootstrap_path.display()));
+    }
     cfg.define("CMAKE_C_FLAGS", cflags);
     let mut cxxflags: OsString = builder
         .cc_handled_clags(target, CLang::Cxx)
@@ -770,6 +775,9 @@ fn configure_cmake(
     }
     if target.contains("ohos") {
         cxxflags.push(" -D_LINUX_SYSINFO_H");
+    }
+    if target.contains("twizzler") {
+        cxxflags.push(" -nostdlib");
     }
     if builder.config.llvm_clang_cl.is_some() {
         cxxflags.push(format!(" --target={target}"));
@@ -1116,7 +1124,8 @@ impl Step for Sanitizers {
             return runtimes;
         }
 
-        let LlvmResult { llvm_config, .. } = builder.ensure(Llvm { target: builder.config.build });
+        let LlvmResult { llvm_config, llvm_cmake_dir } =
+            builder.ensure(Llvm { target: builder.config.build });
 
         static STAMP_HASH_MEMO: OnceLock<String> = OnceLock::new();
         let smart_stamp_hash = STAMP_HASH_MEMO.get_or_init(|| {
@@ -1147,17 +1156,34 @@ impl Step for Sanitizers {
         let mut cfg = cmake::Config::new(&compiler_rt_dir);
         cfg.profile("Release");
         cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
-        cfg.define("COMPILER_RT_BUILD_BUILTINS", "OFF");
-        cfg.define("COMPILER_RT_BUILD_CRT", "OFF");
+        if self.target.contains("twizzler") {
+            cfg.define("COMPILER_RT_BUILD_BUILTINS", "ON");
+            cfg.define("COMPILER_RT_BUILD_CRT", "ON");
+            cfg.define("COMPILER_RT_BUILD_SANITIZERS", "OFF");
+            cfg.define("COMPILER_RT_BAREMETAL_BUILD", "ON");
+            cfg.define("CMAKE_C_FLAGS", "-nostdlib");
+            cfg.cflag("-nostdlibinc");
+            cfg.cflag("-nostdlib");
+            let root = builder.src.join("src/llvm-project/libunwind");
+            let mut bootstrap_path = root.clone();
+            bootstrap_path.push("../../../../bootstrap-include");
+            cfg.cflag("-I");
+            cfg.cflag(bootstrap_path);
+            cfg.cflag("-fno-stack-protector");
+            cfg.target(&self.target.triple).host(&builder.config.build.triple);
+        } else {
+            cfg.define("COMPILER_RT_BUILD_BUILTINS", "OFF");
+            cfg.define("COMPILER_RT_BUILD_CRT", "OFF");
+            cfg.define("COMPILER_RT_BUILD_SANITIZERS", "ON");
+            cfg.define("LLVM_CONFIG_PATH", &llvm_config);
+        }
         cfg.define("COMPILER_RT_BUILD_LIBFUZZER", "OFF");
         cfg.define("COMPILER_RT_BUILD_PROFILE", "OFF");
-        cfg.define("COMPILER_RT_BUILD_SANITIZERS", "ON");
         cfg.define("COMPILER_RT_BUILD_XRAY", "OFF");
         cfg.define("COMPILER_RT_DEFAULT_TARGET_ONLY", "ON");
         cfg.define("COMPILER_RT_USE_LIBCXX", "OFF");
-        cfg.define("LLVM_CONFIG_PATH", &llvm_config);
 
-        if self.target.contains("ohos") {
+        if self.target.contains("ohos") || self.target.contains("twizzler") {
             cfg.define("COMPILER_RT_USE_BUILTINS_LIBRARY", "ON");
         }
 
@@ -1179,6 +1205,9 @@ impl Step for Sanitizers {
             LdFlags::default(),
             suppressed_compiler_flag_prefixes,
         );
+        configure_llvm(builder, self.target, &mut cfg);
+
+        cfg.define("LLVM_CMAKE_DIR", llvm_cmake_dir).define("LLVM_INCLUDE_TESTS", "OFF");
 
         t!(fs::create_dir_all(&out_dir));
         cfg.out_dir(out_dir);
@@ -1238,6 +1267,7 @@ fn supported_sanitizers(
         "aarch64-apple-ios-sim" => darwin_libs("iossim", &["asan", "tsan"]),
         "aarch64-apple-ios-macabi" => darwin_libs("osx", &["asan", "lsan", "tsan"]),
         "aarch64-unknown-fuchsia" => common_libs("fuchsia", "aarch64", &["asan"]),
+        "aarch64-unknown-twizzler" => common_libs("twizzler", "aarch64", &["builtins"]),
         "aarch64-unknown-linux-gnu" => {
             common_libs("linux", "aarch64", &["asan", "lsan", "msan", "tsan", "hwasan"])
         }
@@ -1252,6 +1282,7 @@ fn supported_sanitizers(
         "x86_64-apple-ios" => darwin_libs("iossim", &["asan", "tsan"]),
         "x86_64-apple-ios-macabi" => darwin_libs("osx", &["asan", "lsan", "tsan"]),
         "x86_64-unknown-freebsd" => common_libs("freebsd", "x86_64", &["asan", "msan", "tsan"]),
+        "x86_64-unknown-twizzler" => common_libs("twizzler", "x86_64", &["builtins"]),
         "x86_64-unknown-netbsd" => {
             common_libs("netbsd", "x86_64", &["asan", "lsan", "msan", "tsan"])
         }
@@ -1536,3 +1567,112 @@ impl Step for Libunwind {
         out_dir
     }
 }
+
+/*
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CompilerRt {
+    pub target: TargetSelection,
+}
+
+impl Step for CompilerRt {
+    type Output = PathBuf;
+
+    fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
+        run.path("src/llvm-project/libunwind")
+    }
+
+    fn make_run(run: RunConfig<'_>) {
+        run.builder.ensure(CompilerRt { target: run.target });
+    }
+
+    /// Build CompilerRt
+    fn run(self, builder: &Builder<'_>) -> Self::Output {
+        let compiler_rt_dir = builder.src.join("src/llvm-project/compiler-rt");
+        if !compiler_rt_dir.exists() {
+            return Vec::new();
+        }
+
+        let out_dir = builder.native_dir(self.target);
+
+        if builder.config.dry_run() {
+            return runtimes;
+        }
+
+        let LlvmResult { llvm_config, .. } = builder.ensure(Llvm { target: builder.config.build });
+
+        static STAMP_HASH_MEMO: OnceLock<String> = OnceLock::new();
+        let smart_stamp_hash = STAMP_HASH_MEMO.get_or_init(|| {
+            generate_smart_stamp_hash(
+                builder,
+                &builder.config.src.join("src/llvm-project/compiler-rt"),
+                builder.in_tree_llvm_info.sha().unwrap_or_default(),
+            )
+        });
+
+        let stamp =
+            BuildStamp::new(&out_dir).with_prefix("compiler-rt").add_stamp(smart_stamp_hash);
+
+        if stamp.is_up_to_date() {
+            if stamp.stamp().is_empty() {
+                builder.info(&format!(
+                    "Rebuild compiler-rt by removing the file `{}`",
+                    stamp.path().display()
+                ));
+            }
+
+            return runtimes;
+        }
+
+        let _guard = builder.msg_unstaged(Kind::Build, "compiler-rt", self.target);
+        t!(stamp.remove());
+        let _time = helpers::timeit(builder);
+
+        let mut cfg = cmake::Config::new(&compiler_rt_dir);
+        cfg.profile("Release");
+        cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
+        cfg.define("COMPILER_RT_BUILD_BUILTINS", "ON");
+        cfg.define("COMPILER_RT_BUILD_CRT", "ON");
+        cfg.define("COMPILER_RT_BUILD_LIBFUZZER", "OFF");
+        cfg.define("COMPILER_RT_BUILD_PROFILE", "OFF");
+        cfg.define("COMPILER_RT_BUILD_SANITIZERS", "OFF");
+        cfg.define("COMPILER_RT_BUILD_XRAY", "OFF");
+        cfg.define("COMPILER_RT_DEFAULT_TARGET_ONLY", "ON");
+        cfg.define("COMPILER_RT_USE_LIBCXX", "OFF");
+        cfg.define("LLVM_CONFIG_PATH", &llvm_config);
+
+        if self.target.contains("ohos") {
+            cfg.define("COMPILER_RT_USE_BUILTINS_LIBRARY", "ON");
+        }
+
+        // On Darwin targets the sanitizer runtimes are build as universal binaries.
+        // Unfortunately sccache currently lacks support to build them successfully.
+        // Disable compiler launcher on Darwin targets to avoid potential issues.
+        let use_compiler_launcher = !self.target.contains("apple-darwin");
+        // Since v1.0.86, the cc crate adds -mmacosx-version-min to the default
+        // flags on MacOS. A long-standing bug in the CMake rules for compiler-rt
+        // causes architecture detection to be skipped when this flag is present,
+        // and compilation fails. https://github.com/llvm/llvm-project/issues/88780
+        let suppressed_compiler_flag_prefixes: &[&str] =
+            if self.target.contains("apple-darwin") { &["-mmacosx-version-min="] } else { &[] };
+        configure_cmake(
+            builder,
+            self.target,
+            &mut cfg,
+            use_compiler_launcher,
+            LdFlags::default(),
+            suppressed_compiler_flag_prefixes,
+        );
+
+        t!(fs::create_dir_all(&out_dir));
+        cfg.out_dir(out_dir);
+
+        for runtime in &runtimes {
+            cfg.build_target(&runtime.cmake_target);
+            cfg.build();
+        }
+        t!(stamp.write());
+
+        runtimes
+    }
+}
+*/
