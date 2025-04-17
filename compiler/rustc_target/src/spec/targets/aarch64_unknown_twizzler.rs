@@ -3,7 +3,7 @@ use crate::spec::{Cc, LinkerFlavor, Lld, StackProbeType, Target, TargetMetadata,
 const LINKER_SCRIPT: &str = include_str!("./aarch64_unknown_twizzler_linker_script.ld");
 
 pub(crate) fn target() -> Target {
-    let mut base = crate::spec::base::twizzler::opts(false);
+    let mut base = crate::spec::base::twizzler::opts();
     base.pre_link_args
         .get_mut(&LinkerFlavor::Gnu(Cc::Yes, Lld::Yes))
         .unwrap()
