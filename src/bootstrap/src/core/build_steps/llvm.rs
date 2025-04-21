@@ -751,6 +751,7 @@ fn configure_cmake(
     }
     if target.contains("twizzler") {
         cflags.push(" -nostdlib");
+        cflags.push(" -nostdlibinc");
         let root = builder.src.join("src/llvm-project/libunwind");
         let mut bootstrap_path = root.clone();
         bootstrap_path.push("../../../../bootstrap-include");
@@ -1161,7 +1162,7 @@ impl Step for Sanitizers {
             cfg.define("COMPILER_RT_BUILD_CRT", "ON");
             cfg.define("COMPILER_RT_BUILD_SANITIZERS", "OFF");
             cfg.define("COMPILER_RT_BAREMETAL_BUILD", "ON");
-            cfg.define("CMAKE_C_FLAGS", "-nostdlib");
+            cfg.define("CMAKE_C_FLAGS", "-nostdlib -nostdlibinc");
             cfg.cflag("-nostdlibinc");
             cfg.cflag("-nostdlib");
             let root = builder.src.join("src/llvm-project/libunwind");
