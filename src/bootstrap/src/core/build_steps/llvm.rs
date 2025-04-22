@@ -756,6 +756,7 @@ fn configure_cmake(
         let mut bootstrap_path = root.clone();
         bootstrap_path.push("../../../../bootstrap-include");
         cflags.push(format!(" -I {}", bootstrap_path.display()));
+        cflags.push(format!(" -target {}", target));
     }
     cfg.define("CMAKE_C_FLAGS", cflags);
     let mut cxxflags: OsString = builder
@@ -777,11 +778,17 @@ fn configure_cmake(
     if target.contains("ohos") {
         cxxflags.push(" -D_LINUX_SYSINFO_H");
     }
-    if target.contains("twizzler") {
-        cxxflags.push(" -nostdlib");
-    }
     if builder.config.llvm_clang_cl.is_some() {
         cxxflags.push(format!(" --target={target}"));
+    }
+    if target.contains("twizzler") {
+        cxxflags.push(" -nostdlib");
+        cxxflags.push(" -nostdlibinc");
+        let root = builder.src.join("src/llvm-project/libunwind");
+        let mut bootstrap_path = root.clone();
+        bootstrap_path.push("../../../../bootstrap-include");
+        cxxflags.push(format!(" -I {}", bootstrap_path.display()));
+        cxxflags.push(format!(" -target {}", target));
     }
     cfg.define("CMAKE_CXX_FLAGS", cxxflags);
     if let Some(ar) = builder.ar(target) {
@@ -1162,16 +1169,19 @@ impl Step for Sanitizers {
             cfg.define("COMPILER_RT_BUILD_CRT", "ON");
             cfg.define("COMPILER_RT_BUILD_SANITIZERS", "OFF");
             cfg.define("COMPILER_RT_BAREMETAL_BUILD", "ON");
-            cfg.define("CMAKE_C_FLAGS", "-nostdlib -nostdlibinc");
-            cfg.cflag("-nostdlibinc");
             cfg.cflag("-nostdlib");
             let root = builder.src.join("src/llvm-project/libunwind");
             let mut bootstrap_path = root.clone();
             bootstrap_path.push("../../../../bootstrap-include");
             cfg.cflag("-I");
-            cfg.cflag(bootstrap_path);
+            cfg.cflag(&bootstrap_path);
             cfg.cflag("-fno-stack-protector");
             cfg.target(&self.target.triple).host(&builder.config.build.triple);
+            cfg.asmflag("-I");
+            cfg.asmflag(&bootstrap_path);
+            cfg.asmflag("-target");
+            cfg.asmflag(&self.target.triple);
+            cfg.asmflag("-nostdinc");
         } else {
             cfg.define("COMPILER_RT_BUILD_BUILTINS", "OFF");
             cfg.define("COMPILER_RT_BUILD_CRT", "OFF");
