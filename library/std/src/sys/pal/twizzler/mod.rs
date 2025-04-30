@@ -155,6 +155,7 @@ impl From<TwzError> for crate::io::ErrorKind {
             TwzError::Object(object_error) => object_error.into(),
             TwzError::Io(io_error) => io_error.into(),
             TwzError::Naming(naming_error) => naming_error.into(),
+            TwzError::Security(security_error) => security_error.into(),
         }
     }
 }
@@ -238,6 +239,18 @@ impl From<NamingError> for crate::io::ErrorKind {
             NamingError::AlreadyBound => crate::io::ErrorKind::AddrInUse,
             NamingError::LinkLoop => crate::io::ErrorKind::FilesystemLoop,
             NamingError::NotEmpty => crate::io::ErrorKind::DirectoryNotEmpty,
+        }
+    }
+}
+#[stable(feature = "rust1", since = "1.0.0")]
+impl From<SecurityError> for crate::io::ErrorKind {
+    fn from(value: SecurityError) -> Self {
+        match value {
+            SecurityError::InvalidKey => crate::io::ErrorKind::InvalidInput,
+            SecurityError::SignatureMismatch => crate::io::ErrorKind::PermissionDenied,
+            SecurityError::InvalidGate => crate::io::ErrorKind::PermissionDenied,
+            SecurityError::GateDenied => crate::io::ErrorKind::PermissionDenied,
+            SecurityError::InvalidScheme => crate::io::ErrorKind::InvalidInput,
         }
     }
 }
