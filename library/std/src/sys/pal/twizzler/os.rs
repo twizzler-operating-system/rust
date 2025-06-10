@@ -163,7 +163,7 @@ pub fn env() -> Env {
 }
 
 pub fn getenv(k: &OsStr) -> Option<OsString> {
-    ENV.lock().unwrap().as_ref().unwrap().get(k).cloned()
+    ENV.lock().unwrap().as_ref()?.get(k).cloned()
 }
 
 pub unsafe fn setenv(k: &OsStr, v: &OsStr) -> io::Result<()> {
