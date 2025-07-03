@@ -307,7 +307,7 @@ impl File {
         } else {
             twizzler_rt_abi::bindings::CREATE_KIND_EXISTING
         };
-        let create = twizzler_rt_abi::bindings::create_options { kind };
+        let create = twizzler_rt_abi::bindings::create_options { kind, id: 0 };
         let mut flags = 0;
         if opts.read {
             flags |= twizzler_rt_abi::bindings::OPEN_FLAG_READ;
