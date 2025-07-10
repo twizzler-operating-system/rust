@@ -334,6 +334,22 @@ fn copy_llvm_libunwind(builder: &Builder<'_>, target: TargetSelection, libdir: &
     libunwind_target
 }
 
+fn copy_llvm_libcxx(
+    builder: &Builder<'_>,
+    target: TargetSelection,
+    libdir: &Path,
+) -> (PathBuf, PathBuf) {
+    let libcxx_path = builder.ensure(llvm::Libcxx { target });
+    let libcxx_source = libcxx_path.0.join("lib/libc++.a");
+    let libcxx_target = libdir.join("libc++.a");
+
+    let libcxxabi_source = libcxx_path.1.join("lib/libc++abi.a");
+    let libcxxabi_target = libdir.join("libc++abi.a");
+    builder.copy_link(&libcxx_source, &libcxx_target, FileType::NativeLibrary);
+    builder.copy_link(&libcxxabi_source, &libcxxabi_target, FileType::NativeLibrary);
+    (libcxx_target, libcxxabi_target)
+}
+
 /// Copies third party objects needed by various targets.
 fn copy_third_party_objects(
     builder: &Builder<'_>,
@@ -362,6 +378,13 @@ fn copy_third_party_objects(
         let libunwind_path =
             copy_llvm_libunwind(builder, target, &builder.sysroot_target_libdir(*compiler, target));
         target_deps.push((libunwind_path, DependencyType::Target));
+    }
+
+    if target.contains("twizzler") {
+        let libcxx_path =
+            copy_llvm_libcxx(builder, target, &builder.sysroot_target_libdir(*compiler, target));
+        target_deps.push((libcxx_path.0, DependencyType::Target));
+        target_deps.push((libcxx_path.1, DependencyType::Target));
     }
 
     target_deps

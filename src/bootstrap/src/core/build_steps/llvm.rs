@@ -750,13 +750,11 @@ fn configure_cmake(
         cflags.push(format!(" --target={target}"));
     }
     if target.contains("twizzler") {
-        cflags.push(" -nostdlib");
-        cflags.push(" -nostdlibinc");
-        let root = builder.src.join("src/llvm-project/libunwind");
-        let mut bootstrap_path = root.clone();
-        bootstrap_path.push("../../../../bootstrap-include");
-        cflags.push(format!(" -I {}", bootstrap_path.display()));
+        let sysroot = builder.src.join(format!("../../install/sysroots/{}", target));
+        cflags.push(format!(" --sysroot {}", sysroot.display()));
+        cflags.push(format!(" -isysroot {}", sysroot.display()));
         cflags.push(format!(" -target {}", target));
+        cflags.push(" -nostdlib");
     }
     cfg.define("CMAKE_C_FLAGS", cflags);
     let mut cxxflags: OsString = builder
@@ -782,13 +780,16 @@ fn configure_cmake(
         cxxflags.push(format!(" --target={target}"));
     }
     if target.contains("twizzler") {
-        cxxflags.push(" -nostdlib");
-        cxxflags.push(" -nostdlibinc");
-        let root = builder.src.join("src/llvm-project/libunwind");
-        let mut bootstrap_path = root.clone();
-        bootstrap_path.push("../../../../bootstrap-include");
-        cxxflags.push(format!(" -I {}", bootstrap_path.display()));
+        let sysroot = builder.src.join(format!("../../install/sysroots/{}", target));
+        let cxxinc = builder.native_dir(target).join("libcxx/include/c++/v1");
+        let cxxabiinc = builder.native_dir(target).join("libcxxabi/include/c++/v1");
+        cxxflags.push(format!(" -I{}", cxxabiinc.display()));
+        cxxflags.push(format!(" -I{}", cxxinc.display()));
+        cxxflags.push(format!(" -isysroot{}", sysroot.display()));
+        cxxflags.push(format!(" --sysroot {}", sysroot.display()));
         cxxflags.push(format!(" -target {}", target));
+        cxxflags.push(" -nostdlib");
+        cxxflags.push(" -D__Twizzler__");
     }
     cfg.define("CMAKE_CXX_FLAGS", cxxflags);
     if let Some(ar) = builder.ar(target) {
@@ -1579,111 +1580,143 @@ impl Step for Libunwind {
     }
 }
 
-/*
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CompilerRt {
+pub struct Libcxx {
     pub target: TargetSelection,
 }
 
-impl Step for CompilerRt {
-    type Output = PathBuf;
+impl Step for Libcxx {
+    type Output = (PathBuf, PathBuf);
 
     fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
-        run.path("src/llvm-project/libunwind")
+        run.path("src/llvm-project/libcxx")
     }
 
     fn make_run(run: RunConfig<'_>) {
-        run.builder.ensure(CompilerRt { target: run.target });
+        run.builder.ensure(Libcxx { target: run.target });
     }
 
-    /// Build CompilerRt
+    /// Build libcxx
     fn run(self, builder: &Builder<'_>) -> Self::Output {
-        let compiler_rt_dir = builder.src.join("src/llvm-project/compiler-rt");
-        if !compiler_rt_dir.exists() {
-            return Vec::new();
-        }
-
-        let out_dir = builder.native_dir(self.target);
-
-        if builder.config.dry_run() {
-            return runtimes;
-        }
-
-        let LlvmResult { llvm_config, .. } = builder.ensure(Llvm { target: builder.config.build });
-
-        static STAMP_HASH_MEMO: OnceLock<String> = OnceLock::new();
-        let smart_stamp_hash = STAMP_HASH_MEMO.get_or_init(|| {
-            generate_smart_stamp_hash(
-                builder,
-                &builder.config.src.join("src/llvm-project/compiler-rt"),
-                builder.in_tree_llvm_info.sha().unwrap_or_default(),
-            )
-        });
-
-        let stamp =
-            BuildStamp::new(&out_dir).with_prefix("compiler-rt").add_stamp(smart_stamp_hash);
-
-        if stamp.is_up_to_date() {
-            if stamp.stamp().is_empty() {
-                builder.info(&format!(
-                    "Rebuild compiler-rt by removing the file `{}`",
-                    stamp.path().display()
-                ));
-            }
-
-            return runtimes;
-        }
-
-        let _guard = builder.msg_unstaged(Kind::Build, "compiler-rt", self.target);
-        t!(stamp.remove());
-        let _time = helpers::timeit(builder);
-
-        let mut cfg = cmake::Config::new(&compiler_rt_dir);
-        cfg.profile("Release");
-        cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
-        cfg.define("COMPILER_RT_BUILD_BUILTINS", "ON");
-        cfg.define("COMPILER_RT_BUILD_CRT", "ON");
-        cfg.define("COMPILER_RT_BUILD_LIBFUZZER", "OFF");
-        cfg.define("COMPILER_RT_BUILD_PROFILE", "OFF");
-        cfg.define("COMPILER_RT_BUILD_SANITIZERS", "OFF");
-        cfg.define("COMPILER_RT_BUILD_XRAY", "OFF");
-        cfg.define("COMPILER_RT_DEFAULT_TARGET_ONLY", "ON");
-        cfg.define("COMPILER_RT_USE_LIBCXX", "OFF");
-        cfg.define("LLVM_CONFIG_PATH", &llvm_config);
-
-        if self.target.contains("ohos") {
-            cfg.define("COMPILER_RT_USE_BUILTINS_LIBRARY", "ON");
-        }
-
-        // On Darwin targets the sanitizer runtimes are build as universal binaries.
-        // Unfortunately sccache currently lacks support to build them successfully.
-        // Disable compiler launcher on Darwin targets to avoid potential issues.
-        let use_compiler_launcher = !self.target.contains("apple-darwin");
-        // Since v1.0.86, the cc crate adds -mmacosx-version-min to the default
-        // flags on MacOS. A long-standing bug in the CMake rules for compiler-rt
-        // causes architecture detection to be skipped when this flag is present,
-        // and compilation fails. https://github.com/llvm/llvm-project/issues/88780
-        let suppressed_compiler_flag_prefixes: &[&str] =
-            if self.target.contains("apple-darwin") { &["-mmacosx-version-min="] } else { &[] };
-        configure_cmake(
-            builder,
-            self.target,
-            &mut cfg,
-            use_compiler_launcher,
-            LdFlags::default(),
-            suppressed_compiler_flag_prefixes,
+        builder.require_submodule(
+            "src/llvm-project",
+            Some("The LLVM sources are required for libcxx."),
         );
 
-        t!(fs::create_dir_all(&out_dir));
-        cfg.out_dir(out_dir);
-
-        for runtime in &runtimes {
-            cfg.build_target(&runtime.cmake_target);
-            cfg.build();
+        if builder.config.dry_run() {
+            return (PathBuf::new(), PathBuf::new());
         }
-        t!(stamp.write());
 
-        runtimes
+        let out_dir = builder.native_dir(self.target).join("libcxx");
+        let root = builder.src.join("src/llvm-project/libcxx");
+
+        if up_to_date(&root, &out_dir.join("lib/libc++.a")) {
+            let libcxxabi_path = builder.ensure(Libcxxabi { target: self.target });
+            return (out_dir, libcxxabi_path);
+        }
+
+        let _guard = builder.msg_unstaged(Kind::Build, "lib/libc++.a", self.target);
+        t!(fs::create_dir_all(&out_dir));
+
+        let mut cfg = cmake::Config::new(&root);
+        cfg.profile("Release");
+        cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
+
+        let ldflags = LdFlags::default();
+        configure_cmake(builder, self.target, &mut cfg, true, ldflags, &[]);
+        configure_llvm(builder, self.target, &mut cfg);
+
+        //cfg.define("LLVM_CMAKE_DIR", root.join("cmake")).define("LLVM_INCLUDE_TESTS", "OFF");
+        cfg.define("LIBCXX_HAS_PTHREAD_API", "ON");
+        cfg.define("LIBCXX_CXX_ABI", "libcxxabi");
+        cfg.define("LIBCXX_ENABLE_UNICODE", "OFF");
+        cfg.define("LIBCXX_ENABLE_SHARED", "OFF");
+        cfg.define("LIBCXX_ENABLE_WIDE_CHARACTERS", "OFF");
+        cfg.define("LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY", "OFF");
+        t!(fs::create_dir_all(&out_dir));
+        cfg.out_dir(&out_dir);
+        cfg.build_target("libcxx-generate-files");
+        cfg.build();
+
+        cfg.build_target("install-cxx-modules");
+        cfg.build();
+
+        cfg.build_target("install-cxx-headers");
+        cfg.build();
+        let libcxxabi_path = builder.ensure(Libcxxabi { target: self.target });
+
+        cfg.build_target("install");
+        cfg.build();
+        (out_dir, libcxxabi_path)
     }
 }
-*/
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Libcxxabi {
+    pub target: TargetSelection,
+}
+
+impl Step for Libcxxabi {
+    type Output = PathBuf;
+
+    fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
+        run.path("src/llvm-project/libcxxabi")
+    }
+
+    fn make_run(run: RunConfig<'_>) {
+        run.builder.ensure(Libcxx { target: run.target });
+    }
+
+    /// Build libcxxabi
+    fn run(self, builder: &Builder<'_>) -> Self::Output {
+        builder.require_submodule(
+            "src/llvm-project",
+            Some("The LLVM sources are required for libcxxabi."),
+        );
+
+        if builder.config.dry_run() {
+            return PathBuf::new();
+        }
+
+        let out_dir = builder.native_dir(self.target).join("libcxxabi");
+        let root = builder.src.join("src/llvm-project/libcxxabi");
+
+        if up_to_date(&root, &out_dir.join("libcxxabi.a")) {
+            return out_dir;
+        }
+
+        let _guard = builder.msg_unstaged(Kind::Build, "libcxxabi.a", self.target);
+        t!(fs::create_dir_all(&out_dir));
+
+        let mut cfg = cmake::Config::new(&root);
+        cfg.profile("Release");
+        cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
+
+        let ldflags = LdFlags::default();
+        configure_cmake(builder, self.target, &mut cfg, true, ldflags, &[]);
+        configure_llvm(builder, self.target, &mut cfg);
+
+        //cfg.define("LLVM_CMAKE_DIR", root.join("cmake")).define("LLVM_INCLUDE_TESTS", "OFF");
+        cfg.define("LIBCXXABI_USE_LLVM_UNWINDER", "OFF");
+
+        t!(fs::create_dir_all(&out_dir));
+        cfg.out_dir(&out_dir);
+
+        cfg.build_target("cxxabi_static");
+        cfg.build();
+
+        cfg.build_target("cxxabi_shared");
+        cfg.build();
+
+        cfg.build_target("install-cxxabi-headers");
+        cfg.build();
+
+        let lib_dir = builder.native_dir(self.target).join("libcxxabi/lib");
+        std::fs::create_dir_all(&lib_dir).unwrap();
+        std::fs::copy(out_dir.join("build/lib/libc++abi.a"), lib_dir.join("libc++abi.a")).unwrap();
+        std::fs::copy(out_dir.join("build/lib/libc++abi.so"), lib_dir.join("libc++abi.so"))
+            .unwrap();
+
+        out_dir
+    }
+}
