@@ -697,6 +697,7 @@ fn configure_cmake(
             cfg.define("CMAKE_SYSTEM_NAME", "watchOS");
         } else if target.contains("twizzler") {
             cfg.define("CMAKE_SYSTEM_NAME", "Twizzler");
+            cfg.define("TWIZZLER", "True");
         } else if target.contains("none") {
             // "none" should be the last branch
             cfg.define("CMAKE_SYSTEM_NAME", "Generic");
@@ -1928,6 +1929,7 @@ impl Step for Libcxxabi {
 
         //cfg.define("LLVM_CMAKE_DIR", root.join("cmake")).define("LLVM_INCLUDE_TESTS", "OFF");
         cfg.define("LIBCXXABI_USE_LLVM_UNWINDER", "OFF");
+        cfg.define("LIBCXXABI_ENABLE_THREADS", "ON");
 
         t!(fs::create_dir_all(&out_dir));
         cfg.out_dir(&out_dir);
