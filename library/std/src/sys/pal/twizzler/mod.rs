@@ -56,19 +56,28 @@ pub fn decode_error_kind(_errno: i32) -> crate::io::ErrorKind {
 #[unsafe(no_mangle)]
 #[allow(unreachable_code)]
 #[allow(unused_variables)]
+
 pub unsafe extern "C" fn std_entry_from_runtime(
     aux: twizzler_rt_abi::core::BasicAux,
 ) -> twizzler_rt_abi::core::BasicReturn {
     unsafe extern "C" {
-        fn main(argc: isize, argv: *const *const c_char) -> i32;
+        #[linkage = "extern_weak"]
+        static main: *const core::ffi::c_void;
     }
+
+    let main_fn: Option<extern "C" fn(isize, *const *const c_char) -> i32> =
+        if main.is_null() { None } else { Some(core::mem::transmute(main)) };
 
     crate::sys::os::init_environment(aux.env as *const *const _);
     // If pre_main_hook returns a code, then don't call main and exit with that code instead.
     let code = if let Some(pre_code) = twizzler_rt_abi::core::twz_rt_pre_main_hook() {
         pre_code
     } else {
-        main(aux.argc as isize, aux.args as *const *const _)
+        if let Some(main_fn) = main_fn {
+            main_fn(aux.argc as isize, aux.args as *const *const _)
+        } else {
+            127
+        }
     };
     twizzler_rt_abi::core::twz_rt_post_main_hook();
 
