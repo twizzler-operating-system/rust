@@ -1989,6 +1989,7 @@ crate::target_spec_enum! {
         TeeOs = "teeos",
         Trusty = "trusty",
         TvOs = "tvos",
+        Twizzler = "twizzler",
         Uefi = "uefi",
         VexOs = "vexos",
         VisionOs = "visionos",

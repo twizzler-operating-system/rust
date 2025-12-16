@@ -152,6 +152,7 @@ fn load_book(
     // This should probably be fixed in mdbook to remove the existing
     // preprocessor, or this should modify the config and use
     // MDBook::load_with_config.
+    /*
     if book.config.contains_key("preprocessor.trpl-note") {
         book.with_preprocessor(Note);
     }
@@ -167,6 +168,7 @@ fn load_book(
     if book.config.contains_key("preprocessor.spec") {
         book.with_preprocessor(Spec::new(rust_root)?);
     }
+    */
 
     Ok(book)
 }

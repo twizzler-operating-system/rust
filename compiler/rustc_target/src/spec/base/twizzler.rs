@@ -1,6 +1,6 @@
 use crate::spec::{
-    Cc, FramePointer, LinkArgs, LinkOutputKind, LinkSelfContainedDefault, LinkerFlavor, Lld,
-    PanicStrategy, TargetOptions, TlsModel, crt_objects,
+    Cc, Env, FramePointer, LinkArgs, LinkOutputKind, LinkSelfContainedDefault, LinkerFlavor, Lld,
+    Os, PanicStrategy, TargetOptions, TlsModel, crt_objects,
 };
 
 pub(crate) fn opts() -> TargetOptions {
@@ -12,8 +12,8 @@ pub(crate) fn opts() -> TargetOptions {
     post_link_args.insert(LinkerFlavor::Gnu(Cc::No, Lld::Yes), vec![]);
 
     TargetOptions {
-        os: "twizzler".into(),
-        env: "".into(),
+        os: Os::Twizzler,
+        env: Env::Unspecified,
         linker_flavor: LinkerFlavor::Gnu(Cc::No, Lld::Yes),
         linker: Some("rust-lld".into()),
         executables: true,

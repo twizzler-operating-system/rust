@@ -1358,7 +1358,7 @@ impl Step for Sanitizers {
             return runtimes;
         }
 
-        let LlvmResult { host_llvm_config, .. } =
+        let LlvmResult { host_llvm_config, llvm_cmake_dir, .. } =
             builder.ensure(Llvm { target: builder.config.host_target });
 
         static STAMP_HASH_MEMO: OnceLock<String> = OnceLock::new();
@@ -1402,7 +1402,7 @@ impl Step for Sanitizers {
             cfg.cflag("-I");
             cfg.cflag(&bootstrap_path);
             cfg.cflag("-fno-stack-protector");
-            cfg.target(&self.target.triple).host(&builder.config.build.triple);
+            cfg.target(&self.target.triple).host(&builder.config.host_target.triple);
             cfg.asmflag("-I");
             cfg.asmflag(&bootstrap_path);
             cfg.asmflag("-target");
@@ -1412,7 +1412,6 @@ impl Step for Sanitizers {
             cfg.define("COMPILER_RT_BUILD_BUILTINS", "OFF");
             cfg.define("COMPILER_RT_BUILD_CRT", "OFF");
             cfg.define("COMPILER_RT_BUILD_SANITIZERS", "ON");
-            cfg.define("LLVM_CONFIG_PATH", &llvm_config);
         }
         cfg.define("COMPILER_RT_BUILD_LIBFUZZER", "OFF");
         cfg.define("COMPILER_RT_BUILD_PROFILE", "OFF");
