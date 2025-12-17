@@ -1,9 +1,10 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
+use crate::net::ToSocketAddrs;
 use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 use crate::sys::fd::FileDesc;
-use crate::sys_common::{AsInner, FromInner, IntoInner};
+use crate::sys::{AsInner, FromInner, IntoInner};
 
 #[derive(Debug)]
 pub struct Socket(FileDesc);
@@ -21,7 +22,7 @@ impl Socket {
         unimplemented!()
     }
 
-    pub fn connect(&self, addr: &SocketAddr) -> io::Result<()> {
+    pub fn connect<A: ToSocketAddrs>(&self, _: A) -> io::Result<()> {
         unimplemented!()
     }
 
@@ -183,8 +184,8 @@ impl TcpStream {
         unimplemented!()
     }
 
-    pub fn connect(_: io::Result<&SocketAddr>) -> io::Result<TcpStream> {
-        unsupported()
+    pub fn connect<A: ToSocketAddrs>(_: A) -> io::Result<TcpStream> {
+        unimplemented!()
     }
 
     pub fn connect_timeout(_: &SocketAddr, _: Duration) -> io::Result<TcpStream> {
@@ -305,7 +306,7 @@ impl TcpListener {
         unimplemented!()
     }
 
-    pub fn bind(_: io::Result<&SocketAddr>) -> io::Result<TcpListener> {
+    pub fn bind<A: ToSocketAddrs>(_: A) -> io::Result<TcpListener> {
         unsupported()
     }
 
@@ -363,7 +364,7 @@ impl UdpSocket {
         unimplemented!()
     }
 
-    pub fn bind(_: io::Result<&SocketAddr>) -> io::Result<UdpSocket> {
+    pub fn bind<A: ToSocketAddrs>(_: A) -> io::Result<UdpSocket> {
         unsupported()
     }
 
@@ -483,8 +484,8 @@ impl UdpSocket {
         self.0
     }
 
-    pub fn connect(&self, _: io::Result<&SocketAddr>) -> io::Result<()> {
-        self.0
+    pub fn connect<A: ToSocketAddrs>(&self, _: A) -> io::Result<()> {
+        unimplemented!()
     }
 }
 
@@ -615,4 +616,8 @@ pub mod netc {
         pub sin6_flowinfo: u32,
         pub sin6_scope_id: u32,
     }
+}
+
+pub fn lookup_host(_host: &str, _port: u16) -> io::Result<LookupHost> {
+    unsupported()
 }

@@ -2,7 +2,7 @@
 
 mod io_slice {
     cfg_select! {
-        any(target_family = "unix", target_os = "hermit", target_os = "solid_asp3", target_os = "trusty", target_os = "wasi") => {
+        any(target_family = "unix", target_os = "hermit", target_os = "solid_asp3", target_os = "trusty", target_os = "twizzler", target_os = "wasi") => {
             mod iovec;
             pub use iovec::*;
         }
@@ -42,6 +42,7 @@ mod is_terminal {
         target_os = "twizzler" => {
             mod twizzler;
             pub use twizzler::*;
+        }
         _ => {
             mod unsupported;
             pub use unsupported::*;

@@ -2,7 +2,7 @@
 
 use crate::fs::Metadata;
 use crate::path::Path;
-use crate::sys_common::AsInner;
+use crate::sys::AsInner;
 
 /// OS-specific extensions to [`fs::Metadata`].
 ///

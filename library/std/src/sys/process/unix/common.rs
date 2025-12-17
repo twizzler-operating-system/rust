@@ -7,12 +7,15 @@ pub use self::cstring_array::CStringArray;
 use self::cstring_array::CStringIter;
 use crate::collections::BTreeMap;
 use crate::ffi::{CStr, CString, OsStr, OsString};
+#[cfg(not(target_os = "twizzler"))]
 use crate::os::unix::prelude::*;
+#[cfg(target_os = "twizzler")]
+use crate::os::twizzler::prelude::*;
 use crate::path::Path;
 use crate::process::StdioPipes;
 use crate::sys::fd::FileDesc;
 use crate::sys::fs::File;
-#[cfg(not(target_os = "fuchsia"))]
+#[cfg(not(any(target_os = "fuchsia", target_os = "twizzler")))]
 use crate::sys::fs::OpenOptions;
 use crate::sys::pipe::pipe;
 use crate::sys::process::env::{CommandEnv, CommandEnvs};

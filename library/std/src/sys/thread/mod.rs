@@ -10,6 +10,13 @@ cfg_select! {
         mod motor;
         pub use motor::*;
     }
+    target_os = "twizzler" => {
+        mod twizzler;
+        pub use twizzler::*;
+        #[expect(dead_code)]
+        mod unsupported;
+        pub use unsupported::{current_os_id};
+    }
     all(target_vendor = "fortanix", target_env = "sgx") => {
         mod sgx;
         pub use sgx::{Thread, current_os_id, sleep, yield_now, DEFAULT_MIN_STACK_SIZE};

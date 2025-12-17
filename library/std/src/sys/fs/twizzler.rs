@@ -6,6 +6,7 @@ use twizzler_rt_abi::fd::{FdInfo, FdKind, NameEntry};
 use twizzler_rt_abi::object::ObjID;
 
 use crate::ffi::OsString;
+use crate::fs::TryLockError;
 use crate::io::{self, BorrowedCursor, Error, ErrorKind, IoSlice, IoSliceMut, SeekFrom};
 use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
 use crate::path::{Path, PathBuf};
@@ -13,8 +14,7 @@ use crate::sys::common::small_c_string::run_path_with_cstr;
 use crate::sys::fd::FileDesc;
 pub use crate::sys::fs::common::{copy, exists};
 use crate::sys::time::SystemTime;
-use crate::sys::{time, unsupported};
-use crate::sys_common::{AsInner, AsInnerMut, FromInner, IntoInner};
+use crate::sys::{AsInner, AsInnerMut, FromInner, IntoInner, time, unsupported};
 use crate::time::Duration;
 
 #[derive(Debug)]
@@ -388,6 +388,10 @@ impl File {
         self.0.seek(pos)
     }
 
+    pub fn size(&self) -> Option<io::Result<u64>> {
+        None
+    }
+
     pub fn tell(&self) -> io::Result<u64> {
         self.0.tell()
     }
@@ -406,23 +410,23 @@ impl File {
     }
 
     pub fn lock(&self) -> io::Result<()> {
-        unsupported()
+        Ok(())
     }
 
     pub fn lock_shared(&self) -> io::Result<()> {
-        unsupported()
+        Ok(())
     }
 
-    pub fn try_lock(&self) -> io::Result<bool> {
-        unsupported()
+    pub fn try_lock(&self) -> Result<(), TryLockError> {
+        Ok(())
     }
 
-    pub fn try_lock_shared(&self) -> io::Result<bool> {
-        unsupported()
+    pub fn try_lock_shared(&self) -> Result<(), TryLockError> {
+        Ok(())
     }
 
     pub fn unlock(&self) -> io::Result<()> {
-        unsupported()
+        Ok(())
     }
 }
 
@@ -564,6 +568,10 @@ impl FromRawFd for File {
     }
 }
 
-pub fn anon_pipe() -> io::Result<(FileDesc, FileDesc)> {
-    unsupported()
+pub fn set_times(_p: &Path, _times: FileTimes) -> io::Result<()> {
+    Err(Error::from_raw_os_error(22))
+}
+
+pub fn set_times_nofollow(_p: &Path, _times: FileTimes) -> io::Result<()> {
+    Err(Error::from_raw_os_error(22))
 }

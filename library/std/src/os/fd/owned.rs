@@ -16,7 +16,7 @@ use crate::mem::ManuallyDrop;
     target_env = "sgx",
     target_os = "hermit",
     target_os = "trusty",
-    target_os = "motor"
+    target_os = "motor",
     target_os = "twizzler"
 )))]
 use crate::sys::cvt;
@@ -142,6 +142,8 @@ impl BorrowedFd<'_> {
     pub fn try_clone_to_owned(&self) -> io::Result<OwnedFd> {
         let fd = moto_rt::fs::duplicate(self.as_raw_fd()).map_err(crate::sys::map_motor_error)?;
         Ok(unsafe { OwnedFd::from_raw_fd(fd) })
+    }
+
     #[cfg(target_os = "twizzler")]
     #[stable(feature = "io_safety", since = "1.63.0")]
     pub fn try_clone_to_owned(&self) -> crate::io::Result<OwnedFd> {

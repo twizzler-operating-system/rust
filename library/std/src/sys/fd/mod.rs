@@ -11,6 +11,10 @@ cfg_select! {
         mod hermit;
         pub use hermit::*;
     }
+    target_os = "twizzler" => {
+        mod twizzler;
+        pub use twizzler::*;
+    }
     target_os = "motor" => {
         mod motor;
         pub use motor::*;

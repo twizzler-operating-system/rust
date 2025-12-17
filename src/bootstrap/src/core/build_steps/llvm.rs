@@ -1865,17 +1865,21 @@ impl Step for Libcxx {
         cfg.define("LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY", "OFF");
         t!(fs::create_dir_all(&out_dir));
         cfg.out_dir(&out_dir);
+        eprintln!("GEN");
         cfg.build_target("libcxx-generate-files");
         cfg.build();
 
+        eprintln!("INST CXX M");
         cfg.build_target("install-cxx-modules");
         cfg.build();
 
+        eprintln!("INST CXX H");
         cfg.build_target("install-cxx-headers");
         cfg.build();
         let libcxxabi_path = builder.ensure(Libcxxabi { target: self.target });
 
-        cfg.build_target("install");
+        eprintln!("INS CX");
+        cfg.build_target("install-cxx");
         cfg.build();
         (out_dir, libcxxabi_path)
     }
@@ -1933,12 +1937,15 @@ impl Step for Libcxxabi {
         t!(fs::create_dir_all(&out_dir));
         cfg.out_dir(&out_dir);
 
+        eprintln!("LLVM BUILD CXXABI_STATIC");
         cfg.build_target("cxxabi_static");
         cfg.build();
 
+        eprintln!("LLVM BUILD CXXABI_SHARED");
         cfg.build_target("cxxabi_shared");
         cfg.build();
 
+        eprintln!("LLVM BUILD CXXABI_INSTALL");
         cfg.build_target("install-cxxabi-headers");
         cfg.build();
 

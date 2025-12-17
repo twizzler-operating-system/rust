@@ -59,6 +59,7 @@ cfg_select! {
     target_os = "twizzler" => {
         mod twizzler;
         pub use self::twizzler::*;
+    }
     target_os = "zkvm" => {
         mod zkvm;
         pub use self::zkvm::*;

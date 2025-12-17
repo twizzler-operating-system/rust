@@ -42,6 +42,9 @@ impl Instant {
 }
 
 impl SystemTime {
+    pub const MAX: SystemTime = SystemTime(Duration::MAX);
+    pub const MIN: SystemTime = SystemTime(Duration::ZERO);
+
     pub fn now() -> SystemTime {
         SystemTime(twizzler_rt_abi::time::twz_rt_get_system_time())
     }

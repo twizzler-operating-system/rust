@@ -5,6 +5,9 @@ use libc::c_char;
 pub use super::common::Env;
 use crate::ffi::{CStr, OsStr, OsString};
 use crate::io;
+#[cfg(target_os = "twizzler")]
+use crate::os::twizzler::prelude::*;
+#[cfg(not(target_os = "twizzler"))]
 use crate::os::unix::prelude::*;
 use crate::sync::{PoisonError, RwLock};
 use crate::sys::cvt;

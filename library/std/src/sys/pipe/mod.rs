@@ -13,6 +13,10 @@ cfg_select! {
         mod motor;
         pub use motor::{Pipe, pipe};
     }
+    target_os = "twizzler" => {
+        mod unix;
+        pub use unix::{Pipe, pipe};
+    }
     _ => {
         mod unsupported;
         pub use unsupported::{Pipe, pipe};

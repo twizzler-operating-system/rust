@@ -11,6 +11,7 @@
     target_os = "uefi",
     target_os = "wasi",
     target_os = "xous",
+    target_os = "twizzler",
 ))]
 mod common;
 
@@ -30,6 +31,10 @@ cfg_select! {
     target_os = "motor" => {
         mod motor;
         pub use motor::*;
+    }
+    target_os = "twizzler" => {
+        mod twizzler;
+        pub use twizzler::*;
     }
     all(target_vendor = "fortanix", target_env = "sgx") => {
         mod sgx;

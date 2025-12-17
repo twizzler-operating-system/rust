@@ -40,11 +40,10 @@ dependencies = [
 
 [[package]]
 name = "bitflags"
-version = "2.9.0"
+version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c8214115b7bf84099f1309324e63141d4c5d7cc26862f97a0a857dbefe165bd"
+checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
 dependencies = [
- "compiler_builtins",
  "rustc-std-workspace-core",
 ]
 
@@ -64,6 +63,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 dependencies = [
  "rustc-std-workspace-core",
+]
+
+[[package]]
+name = "compiler_builtins"
+version = "0.1.160"
+dependencies = [
+ "cc",
+ "core",
 ]
 
 [[package]]
@@ -149,8 +156,6 @@ dependencies = [
 [[package]]
 name = "libc"
 version = "0.2.178"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37c93d8daa9d8a012fd8ab92f088405fb202ea0b6ab73ee2482ae66af4f42091"
 dependencies = [
  "rustc-std-workspace-core",
 ]
@@ -380,6 +385,22 @@ dependencies = [
  "getopts",
  "libc",
  "std",
+]
+
+[[package]]
+name = "twizzler-rt-abi"
+version = "0.99.1"
+dependencies = [
+ "bitflags",
+ "rustc-std-workspace-core",
+ "twizzler-types",
+]
+
+[[package]]
+name = "twizzler-types"
+version = "0.1.0"
+dependencies = [
+ "rustc-std-workspace-core",
 ]
 
 [[package]]

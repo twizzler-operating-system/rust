@@ -1,12 +1,7 @@
 use crate::os::raw::c_char;
 
-pub mod args;
-pub mod env;
-pub mod fd;
 pub mod futex;
 pub mod os;
-pub mod pipe;
-pub mod thread;
 pub mod time;
 
 pub fn unsupported<T>() -> crate::io::Result<T> {
@@ -37,7 +32,7 @@ pub extern "C" fn __rust_abort() {
 // SAFETY: must be called only once during runtime initialization.
 // NOTE: this is not guaranteed to run, for example when Rust code is called externally.
 pub unsafe fn init(argc: isize, argv: *const *const u8, _sigpipe: u8) {
-    args::init(argc, argv);
+    crate::sys::args::init(argc, argv);
 }
 
 // SAFETY: must be called only once during runtime cleanup.
@@ -68,7 +63,7 @@ pub unsafe extern "C" fn std_entry_from_runtime(
     let main_fn: Option<extern "C" fn(isize, *const *const c_char) -> i32> =
         if main.is_null() { None } else { Some(core::mem::transmute(main)) };
 
-    crate::sys::os::init_environment(aux.env as *const *const _);
+    crate::sys::env::init_environment(aux.env as *const *const _);
     // If pre_main_hook returns a code, then don't call main and exit with that code instead.
     let code = if let Some(pre_code) = twizzler_rt_abi::core::twz_rt_pre_main_hook() {
         pre_code

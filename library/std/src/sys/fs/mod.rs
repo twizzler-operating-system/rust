@@ -35,7 +35,7 @@ cfg_select! {
     }
     target_os = "twizzler" => {
         mod twizzler;
-        pub use twizzler::*;
+        use twizzler as imp;
     }
     target_os = "solid_asp3" => {
         mod solid;

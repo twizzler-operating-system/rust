@@ -1,13 +1,13 @@
 use crate::io;
+#[cfg(not(target_os = "twizzler"))]
 use crate::os::fd::FromRawFd;
 use crate::sys::fd::FileDesc;
+#[cfg(not(target_os = "twizzler"))]
 use crate::sys::pal::cvt;
 
 pub type Pipe = FileDesc;
 
 pub fn pipe() -> io::Result<(Pipe, Pipe)> {
-    let mut fds = [0; 2];
-
     // The only known way right now to create atomically set the CLOEXEC flag is
     // to use the `pipe2` syscall. This was added to Linux in 2.6.27, glibc 2.9
     // and musl 0.9.3, and some other targets also have it.
@@ -24,12 +24,17 @@ pub fn pipe() -> io::Result<(Pipe, Pipe)> {
             target_os = "cygwin",
             target_os = "redox"
         ) => {
+            let mut fds = [0; 2];
             unsafe {
                 cvt(libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC))?;
                 Ok((Pipe::from_raw_fd(fds[0]), Pipe::from_raw_fd(fds[1])))
             }
         }
+        target_os = "twizzler" => {
+            crate::sys::pal::unsupported()
+        }
         _ => {
+            let mut fds = [0; 2];
             unsafe {
                 cvt(libc::pipe(fds.as_mut_ptr()))?;
 

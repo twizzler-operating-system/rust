@@ -9,7 +9,9 @@ pub use super::common::Args;
 use crate::ffi::CStr;
 #[cfg(target_os = "hermit")]
 use crate::os::hermit::ffi::OsStringExt;
-#[cfg(not(target_os = "hermit"))]
+#[cfg(target_os = "twizzler")]
+use crate::os::twizzler::ffi::OsStringExt;
+#[cfg(not(any(target_os = "hermit", target_os = "twizzler")))]
 use crate::os::unix::ffi::OsStringExt;
 
 /// One-time global initialization.
@@ -79,6 +81,7 @@ pub fn args() -> Args {
     target_os = "redox",
     target_os = "vxworks",
     target_os = "horizon",
+    target_os = "twizzler",
     target_os = "aix",
     target_os = "nto",
     target_os = "hurd",
