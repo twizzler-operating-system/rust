@@ -208,8 +208,9 @@ macro_rules! install {
 
 install!((self, builder, _config),
     Docs, path = "src/doc", _config.docs, IS_HOST: false, {
-        let tarball = builder.ensure(dist::Docs { host: self.target }).expect("missing docs");
-        install_sh(builder, "docs", self.build_compiler, Some(self.target), &tarball);
+        if let Some(tarball) = builder.ensure(dist::Docs { host: self.target }) {
+            install_sh(builder, "docs", self.build_compiler, Some(self.target), &tarball);
+        }
     };
     Std, path = "library/std", true, IS_HOST: false, {
         // `expect` should be safe, only None when host != build, but this

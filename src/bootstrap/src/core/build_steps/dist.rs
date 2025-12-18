@@ -80,6 +80,9 @@ impl Step for Docs {
     /// Builds the `rust-docs` installer component.
     fn run(self, builder: &Builder<'_>) -> Option<GeneratedTarball> {
         let host = self.host;
+        if !builder.config.docs {
+            return None;
+        }
         // FIXME: explicitly enumerate the steps that should be executed here, and gather their
         // documentation, rather than running all default steps and then read their output
         // from a shared directory.

@@ -20,3 +20,9 @@ core = { path = "../core", public = true }
 compiler_builtins = { path = "../compiler-builtins/compiler-builtins", features = [
   "compiler-builtins",
 ] }
+
+[target.'cfg(target_os = "twizzler")'.dependencies.compiler_builtins]
+# TODO (twizzler): one of the features is "c", which enables optimized c impls for some builtins. But when we enable it,
+# we end up with things getting recompiled too often. Something to look into.
+features = ["mem", "compiler-builtins"]
+path = "../compiler-builtins/compiler-builtins"
