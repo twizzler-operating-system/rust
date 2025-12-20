@@ -1,6 +1,8 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
+use libc::MSG_PEEK;
+
 use crate::net::ToSocketAddrs;
 use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
 use crate::sys::fd::FileDesc;
@@ -14,15 +16,7 @@ impl Socket {
         unimplemented!()
     }
 
-    pub fn new_raw(fam: i32, ty: i32) -> io::Result<Socket> {
-        unimplemented!()
-    }
-
-    pub fn new_pair(_fam: i32, _ty: i32) -> io::Result<(Socket, Socket)> {
-        unimplemented!()
-    }
-
-    pub fn connect<A: ToSocketAddrs>(&self, _: A) -> io::Result<()> {
+    pub fn connect<A: ToSocketAddrs>(&self, addr: A) -> io::Result<()> {
         unimplemented!()
     }
 
@@ -41,32 +35,32 @@ impl Socket {
     */
 
     pub fn duplicate(&self) -> io::Result<Socket> {
-        unimplemented!()
+        Ok(Self(self.0.duplicate()?))
     }
 
-    fn recv_with_flags(&self, buf: BorrowedCursor<'_>, flags: i32) -> io::Result<()> {
+    fn recv_with_flags(&self, buf: &mut [u8], flags: i32) -> io::Result<usize> {
         unimplemented!()
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!()
+        self.0.read(buf)
     }
 
     pub fn peek(&self, buf: &mut [u8]) -> io::Result<usize> {
-        unimplemented!()
+        self.recv_with_flags(buf, MSG_PEEK)
     }
 
     pub fn read_buf(&self, buf: BorrowedCursor<'_>) -> io::Result<()> {
-        unimplemented!()
+        self.0.read_buf(buf)
     }
 
     pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
-        unimplemented!()
+        self.0.read_vectored(bufs)
     }
 
     #[inline]
     pub fn is_read_vectored(&self) -> bool {
-        unimplemented!()
+        self.0.is_read_vectored()
     }
 
     fn recv_from_with_flags(&self, buf: &mut [u8], flags: i32) -> io::Result<(usize, SocketAddr)> {
@@ -74,23 +68,23 @@ impl Socket {
     }
 
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
-        unimplemented!()
+        self.recv_from_with_flags(buf, 0)
     }
 
     pub fn peek_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
-        unimplemented!()
+        self.recv_from_with_flags(buf, MSG_PEEK)
     }
 
     pub fn write(&self, buf: &[u8]) -> io::Result<usize> {
-        unimplemented!()
+        self.0.write(buf)
     }
 
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
-        unimplemented!()
+        self.0.write_vectored(bufs)
     }
 
     pub fn is_write_vectored(&self) -> bool {
-        unimplemented!()
+        self.0.is_write_vectored()
     }
 
     pub fn set_timeout(&self, dur: Option<Duration>, kind: i32) -> io::Result<()> {
@@ -122,16 +116,60 @@ impl Socket {
     }
 
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
-        unimplemented!()
+        self.0.set_nonblocking(nonblocking)
     }
 
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
-        unimplemented!()
+        Ok(None)
     }
 
     // This is used by sys_common code to abstract over Windows and Unix.
     pub fn as_raw(&self) -> RawFd {
         self.0.as_raw_fd()
+    }
+
+    pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+
+    pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> {
+        Ok(())
+    }
+
+    pub fn read_timeout(&self) -> io::Result<Option<Duration>> {
+        Ok(None)
+    }
+
+    pub fn write_timeout(&self) -> io::Result<Option<Duration>> {
+        Ok(None)
+    }
+
+    pub fn peer_addr(&self) -> io::Result<SocketAddr> {
+        todo!()
+    }
+
+    pub fn socket_addr(&self) -> io::Result<SocketAddr> {
+        todo!()
+    }
+
+    pub fn set_ttl(&self, _ttl: u32) -> io::Result<()> {
+        todo!()
+    }
+
+    pub fn ttl(&self) -> io::Result<u32> {
+        todo!()
+    }
+
+    pub fn set_only_v6(&self, _: bool) -> io::Result<()> {
+        todo!()
+    }
+
+    pub fn only_v6(&self) -> io::Result<bool> {
+        todo!()
+    }
+
+    pub fn send_to(&self, _: &[u8], _: &SocketAddr) -> io::Result<usize> {
+        unsupported()
     }
 }
 
@@ -167,143 +205,141 @@ impl AsRawFd for Socket {
     }
 }
 
-use crate::fmt;
 use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut};
 use crate::net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr};
 use crate::sys::unsupported;
 use crate::time::Duration;
 
-pub struct TcpStream(!);
+#[derive(Debug)]
+pub struct TcpStream(Socket);
 
 impl TcpStream {
     pub fn socket(&self) -> &Socket {
-        unimplemented!()
+        &self.0
     }
 
     pub fn into_socket(self) -> Socket {
-        unimplemented!()
-    }
-
-    pub fn connect<A: ToSocketAddrs>(_: A) -> io::Result<TcpStream> {
-        unimplemented!()
-    }
-
-    pub fn connect_timeout(_: &SocketAddr, _: Duration) -> io::Result<TcpStream> {
-        unsupported()
-    }
-
-    pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> {
         self.0
     }
 
-    pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> {
-        self.0
+    pub fn connect<A: ToSocketAddrs>(a: A) -> io::Result<TcpStream> {
+        let socket = Socket::new(&a.to_socket_addrs()?.next().unwrap(), libc::SOCK_STREAM)?;
+        Ok(Self(socket))
+    }
+
+    pub fn connect_timeout(a: &SocketAddr, d: Duration) -> io::Result<TcpStream> {
+        // TODO: timeout
+        let socket = Socket::new(&a, libc::SOCK_STREAM)?;
+        Ok(Self(socket))
+    }
+
+    pub fn set_read_timeout(&self, t: Option<Duration>) -> io::Result<()> {
+        self.0.set_read_timeout(t)
+    }
+
+    pub fn set_write_timeout(&self, t: Option<Duration>) -> io::Result<()> {
+        self.0.set_write_timeout(t)
     }
 
     pub fn read_timeout(&self) -> io::Result<Option<Duration>> {
-        self.0
+        self.0.read_timeout()
     }
 
     pub fn write_timeout(&self) -> io::Result<Option<Duration>> {
-        self.0
+        self.0.write_timeout()
     }
 
-    pub fn peek(&self, _: &mut [u8]) -> io::Result<usize> {
-        self.0
+    pub fn peek(&self, b: &mut [u8]) -> io::Result<usize> {
+        self.0.peek(b)
     }
 
-    pub fn read(&self, _: &mut [u8]) -> io::Result<usize> {
-        self.0
+    pub fn read(&self, b: &mut [u8]) -> io::Result<usize> {
+        self.0.read(b)
     }
 
-    pub fn read_buf(&self, _buf: BorrowedCursor<'_>) -> io::Result<()> {
-        self.0
+    pub fn read_buf(&self, buf: BorrowedCursor<'_>) -> io::Result<()> {
+        self.0.read_buf(buf)
     }
 
-    pub fn read_vectored(&self, _: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
-        self.0
+    pub fn read_vectored(&self, bufs: &mut [IoSliceMut<'_>]) -> io::Result<usize> {
+        self.0.read_vectored(bufs)
     }
 
     pub fn is_read_vectored(&self) -> bool {
-        self.0
+        self.0.is_read_vectored()
     }
 
-    pub fn write(&self, _: &[u8]) -> io::Result<usize> {
-        self.0
+    pub fn write(&self, b: &[u8]) -> io::Result<usize> {
+        self.0.write(b)
     }
 
-    pub fn write_vectored(&self, _: &[IoSlice<'_>]) -> io::Result<usize> {
-        self.0
+    pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
+        self.0.write_vectored(bufs)
     }
 
     pub fn is_write_vectored(&self) -> bool {
-        self.0
+        self.0.is_write_vectored()
     }
 
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        self.0
+        self.0.peer_addr()
     }
 
     pub fn socket_addr(&self) -> io::Result<SocketAddr> {
-        self.0
+        self.0.socket_addr()
     }
 
-    pub fn shutdown(&self, _: Shutdown) -> io::Result<()> {
-        self.0
+    pub fn shutdown(&self, s: Shutdown) -> io::Result<()> {
+        self.0.shutdown(s)
     }
 
     pub fn duplicate(&self) -> io::Result<TcpStream> {
-        self.0
+        Ok(Self(self.0.duplicate()?))
     }
 
-    pub fn set_linger(&self, _: Option<Duration>) -> io::Result<()> {
-        self.0
+    pub fn set_linger(&self, b: Option<Duration>) -> io::Result<()> {
+        self.0.set_linger(b)
     }
 
     pub fn linger(&self) -> io::Result<Option<Duration>> {
-        self.0
+        self.0.linger()
     }
 
-    pub fn set_nodelay(&self, _: bool) -> io::Result<()> {
-        self.0
+    pub fn set_nodelay(&self, b: bool) -> io::Result<()> {
+        self.0.set_nodelay(b)
     }
 
     pub fn nodelay(&self) -> io::Result<bool> {
-        self.0
+        self.0.nodelay()
     }
 
-    pub fn set_ttl(&self, _: u32) -> io::Result<()> {
-        self.0
+    pub fn set_ttl(&self, ttl: u32) -> io::Result<()> {
+        self.0.set_ttl(ttl)
     }
 
     pub fn ttl(&self) -> io::Result<u32> {
-        self.0
+        self.0.ttl()
     }
 
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
-        self.0
+        self.0.take_error()
     }
 
-    pub fn set_nonblocking(&self, _: bool) -> io::Result<()> {
-        self.0
-    }
-}
-
-impl fmt::Debug for TcpStream {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0
+    pub fn set_nonblocking(&self, b: bool) -> io::Result<()> {
+        self.0.set_nonblocking(b)
     }
 }
 
-pub struct TcpListener(!);
+#[derive(Debug)]
+pub struct TcpListener(Socket);
 
 impl TcpListener {
     pub fn socket(&self) -> &Socket {
-        unimplemented!()
+        &self.0
     }
 
     pub fn into_socket(self) -> Socket {
-        unimplemented!()
+        self.0
     }
 
     pub fn bind<A: ToSocketAddrs>(_: A) -> io::Result<TcpListener> {
@@ -311,57 +347,52 @@ impl TcpListener {
     }
 
     pub fn socket_addr(&self) -> io::Result<SocketAddr> {
-        self.0
+        self.0.socket_addr()
     }
 
     pub fn accept(&self) -> io::Result<(TcpStream, SocketAddr)> {
-        self.0
+        todo!()
     }
 
     pub fn duplicate(&self) -> io::Result<TcpListener> {
-        self.0
+        Ok(Self(self.0.duplicate()?))
     }
 
-    pub fn set_ttl(&self, _: u32) -> io::Result<()> {
-        self.0
+    pub fn set_ttl(&self, ttl: u32) -> io::Result<()> {
+        self.0.set_ttl(ttl)
     }
 
     pub fn ttl(&self) -> io::Result<u32> {
-        self.0
+        self.0.ttl()
     }
 
-    pub fn set_only_v6(&self, _: bool) -> io::Result<()> {
-        self.0
+    pub fn set_only_v6(&self, only_v6: bool) -> io::Result<()> {
+        self.0.set_only_v6(only_v6)
     }
 
     pub fn only_v6(&self) -> io::Result<bool> {
-        self.0
+        self.0.only_v6()
     }
 
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
-        self.0
+        self.0.take_error()
     }
 
-    pub fn set_nonblocking(&self, _: bool) -> io::Result<()> {
-        self.0
-    }
-}
-
-impl fmt::Debug for TcpListener {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0
+    pub fn set_nonblocking(&self, b: bool) -> io::Result<()> {
+        self.0.set_nonblocking(b)
     }
 }
 
-pub struct UdpSocket(!);
+#[derive(Debug)]
+pub struct UdpSocket(Socket);
 
 impl UdpSocket {
     pub fn socket(&self) -> &Socket {
-        unimplemented!()
+        &self.0
     }
 
     pub fn into_socket(self) -> Socket {
-        unimplemented!()
+        self.0
     }
 
     pub fn bind<A: ToSocketAddrs>(_: A) -> io::Result<UdpSocket> {
@@ -369,129 +400,123 @@ impl UdpSocket {
     }
 
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        self.0
+        self.0.peer_addr()
     }
 
     pub fn socket_addr(&self) -> io::Result<SocketAddr> {
-        self.0
+        self.0.socket_addr()
     }
 
-    pub fn recv_from(&self, _: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
-        self.0
+    pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
+        self.0.recv_from(buf)
     }
 
-    pub fn peek_from(&self, _: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
-        self.0
+    pub fn peek_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
+        self.0.peek_from(buf)
     }
 
-    pub fn send_to(&self, _: &[u8], _: &SocketAddr) -> io::Result<usize> {
-        self.0
+    pub fn send_to(&self, buf: &[u8], addr: &SocketAddr) -> io::Result<usize> {
+        self.0.send_to(buf, addr)
     }
 
     pub fn duplicate(&self) -> io::Result<UdpSocket> {
-        self.0
+        Ok(Self(self.0.duplicate()?))
     }
 
-    pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> {
-        self.0
+    pub fn set_read_timeout(&self, t: Option<Duration>) -> io::Result<()> {
+        self.0.set_read_timeout(t)
     }
 
-    pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> {
-        self.0
+    pub fn set_write_timeout(&self, t: Option<Duration>) -> io::Result<()> {
+        self.0.set_write_timeout(t)
     }
 
     pub fn read_timeout(&self) -> io::Result<Option<Duration>> {
-        self.0
+        self.0.read_timeout()
     }
 
     pub fn write_timeout(&self) -> io::Result<Option<Duration>> {
-        self.0
+        self.0.write_timeout()
     }
 
     pub fn set_broadcast(&self, _: bool) -> io::Result<()> {
-        self.0
+        unsupported()
     }
 
     pub fn broadcast(&self) -> io::Result<bool> {
-        self.0
+        unsupported()
     }
 
     pub fn set_multicast_loop_v4(&self, _: bool) -> io::Result<()> {
-        self.0
+        unsupported()
     }
 
     pub fn multicast_loop_v4(&self) -> io::Result<bool> {
-        self.0
+        unsupported()
     }
 
     pub fn set_multicast_ttl_v4(&self, _: u32) -> io::Result<()> {
-        self.0
+        unsupported()
     }
 
     pub fn multicast_ttl_v4(&self) -> io::Result<u32> {
-        self.0
+        unsupported()
     }
 
     pub fn set_multicast_loop_v6(&self, _: bool) -> io::Result<()> {
-        self.0
+        unsupported()
     }
 
     pub fn multicast_loop_v6(&self) -> io::Result<bool> {
-        self.0
+        unsupported()
     }
 
     pub fn join_multicast_v4(&self, _: &Ipv4Addr, _: &Ipv4Addr) -> io::Result<()> {
-        self.0
+        unsupported()
     }
 
     pub fn join_multicast_v6(&self, _: &Ipv6Addr, _: u32) -> io::Result<()> {
-        self.0
+        unsupported()
     }
 
     pub fn leave_multicast_v4(&self, _: &Ipv4Addr, _: &Ipv4Addr) -> io::Result<()> {
-        self.0
+        unsupported()
     }
 
     pub fn leave_multicast_v6(&self, _: &Ipv6Addr, _: u32) -> io::Result<()> {
-        self.0
+        unsupported()
     }
 
-    pub fn set_ttl(&self, _: u32) -> io::Result<()> {
-        self.0
+    pub fn set_ttl(&self, ttl: u32) -> io::Result<()> {
+        self.0.set_ttl(ttl)
     }
 
     pub fn ttl(&self) -> io::Result<u32> {
-        self.0
+        self.0.ttl()
     }
 
     pub fn take_error(&self) -> io::Result<Option<io::Error>> {
-        self.0
+        self.0.take_error()
     }
 
-    pub fn set_nonblocking(&self, _: bool) -> io::Result<()> {
-        self.0
+    pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
+        self.0.set_nonblocking(nonblocking)
     }
 
-    pub fn recv(&self, _: &mut [u8]) -> io::Result<usize> {
-        self.0
+    pub fn recv(&self, buf: &mut [u8]) -> io::Result<usize> {
+        self.0.read(buf)
     }
 
-    pub fn peek(&self, _: &mut [u8]) -> io::Result<usize> {
-        self.0
+    pub fn peek(&self, buf: &mut [u8]) -> io::Result<usize> {
+        self.0.peek(buf)
     }
 
-    pub fn send(&self, _: &[u8]) -> io::Result<usize> {
-        self.0
+    pub fn send(&self, buf: &[u8]) -> io::Result<usize> {
+        self.0.write(buf)
     }
 
-    pub fn connect<A: ToSocketAddrs>(&self, _: A) -> io::Result<()> {
-        unimplemented!()
-    }
-}
-
-impl fmt::Debug for UdpSocket {
-    fn fmt(&self, _f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0
+    pub fn connect<A: ToSocketAddrs>(&self, a: A) -> io::Result<()> {
+        todo!()
     }
 }
 
@@ -529,7 +554,7 @@ impl<'a> TryFrom<(&'a str, u16)> for LookupHost {
 impl AsInner<Socket> for TcpStream {
     #[inline]
     fn as_inner(&self) -> &Socket {
-        self.0
+        &self.0
     }
 }
 
@@ -541,14 +566,14 @@ impl IntoInner<Socket> for TcpStream {
 
 impl FromInner<Socket> for TcpStream {
     fn from_inner(file_desc: Socket) -> Self {
-        unimplemented!()
+        Self(file_desc)
     }
 }
 
 impl AsInner<Socket> for TcpListener {
     #[inline]
     fn as_inner(&self) -> &Socket {
-        self.0
+        &self.0
     }
 }
 
@@ -560,14 +585,14 @@ impl IntoInner<Socket> for TcpListener {
 
 impl FromInner<Socket> for TcpListener {
     fn from_inner(file_desc: Socket) -> Self {
-        unimplemented!()
+        Self(file_desc)
     }
 }
 
 impl AsInner<Socket> for UdpSocket {
     #[inline]
     fn as_inner(&self) -> &Socket {
-        self.0
+        &self.0
     }
 }
 
@@ -579,10 +604,11 @@ impl IntoInner<Socket> for UdpSocket {
 
 impl FromInner<Socket> for UdpSocket {
     fn from_inner(file_desc: Socket) -> Self {
-        unimplemented!()
+        Self(file_desc)
     }
 }
 
+/*
 #[allow(nonstandard_style)]
 pub mod netc {
     pub const AF_INET: u8 = 0;
@@ -617,6 +643,7 @@ pub mod netc {
         pub sin6_scope_id: u32,
     }
 }
+*/
 
 pub fn lookup_host(_host: &str, _port: u16) -> io::Result<LookupHost> {
     unsupported()
