@@ -1723,7 +1723,9 @@ impl Step for Libunwind {
                 // it needs very few. So we just provide some hacky ones.
                 cfg.flag("-nostdlibinc");
                 let mut bootstrap_path = root.clone();
-                bootstrap_path.push("../../../../bootstrap-include");
+                bootstrap_path.push("../../../../../install/sysroots");
+                bootstrap_path.push(&format!("{}", self.target.triple));
+                bootstrap_path.push("include");
                 cfg.include(bootstrap_path);
                 cfg.flag("-fno-stack-protector");
                 cfg.define("__ELF__", None);

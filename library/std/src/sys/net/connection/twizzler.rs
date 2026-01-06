@@ -2,44 +2,78 @@
 #![allow(dead_code)]
 
 use libc::MSG_PEEK;
+use twizzler_rt_abi::{fd::ProtKind, io::IoFlags};
 
-use crate::net::ToSocketAddrs;
-use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd};
-use crate::sys::fd::FileDesc;
-use crate::sys::{AsInner, FromInner, IntoInner};
+use crate::{
+    net::ToSocketAddrs,
+    os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, RawFd},
+    sys::{fd::FileDesc, AsInner, FromInner, IntoInner},
+};
 
 #[derive(Debug)]
-pub struct Socket(FileDesc);
+pub struct Socket(FileDesc, ProtKind);
 
 impl Socket {
-    pub fn new(addr: &SocketAddr, ty: i32) -> io::Result<Socket> {
-        unimplemented!()
+    pub fn new(fam: i32, ty: i32) -> io::Result<Socket> {
+        let prot = match ty {
+            libc::SOCK_STREAM => twizzler_rt_abi::fd::ProtKind::Stream,
+            libc::SOCK_DGRAM => twizzler_rt_abi::fd::ProtKind::Datagram,
+            _ => return unsupported(),
+        };
+        let addr: SocketAddr = match fam {
+            libc::AF_INET => (Ipv4Addr::UNSPECIFIED, 0).into(),
+            libc::AF_INET6 => (Ipv6Addr::UNSPECIFIED, 0).into(),
+            _ => return unsupported(),
+        };
+        let fd = twizzler_rt_abi::fd::twz_rt_fd_open_socket_bind(addr.into(), 0, prot)?;
+
+        Ok(Self(unsafe { FileDesc::from_raw_fd(fd) }, prot))
     }
 
     pub fn connect<A: ToSocketAddrs>(&self, addr: A) -> io::Result<()> {
-        unimplemented!()
+        let mut res = Ok(());
+        for addr in addr.to_socket_addrs()? {
+            let thisres = twizzler_rt_abi::fd::twz_rt_fd_socket_reconnect(
+                self.0.as_raw_fd(),
+                addr.into(),
+                0,
+                self.1,
+            );
+            if thisres.is_ok() {
+                return Ok(());
+            }
+            res = thisres.into();
+        }
+        Ok(res?)
     }
 
     pub fn connect_timeout(&self, addr: &SocketAddr, timeout: Duration) -> io::Result<()> {
-        unimplemented!()
+        let old_timeout = self.write_timeout()?;
+        self.set_write_timeout(Some(timeout))?;
+        let res = self.connect(addr);
+        let _ = self.set_write_timeout(old_timeout);
+        res
     }
-
-    /*
-    pub fn accept(
-        &self,
-        storage: *mut netc::sockaddr,
-        len: *mut netc::socklen_t,
-    ) -> io::Result<Socket> {
-        unimplemented!()
-    }
-    */
 
     pub fn duplicate(&self) -> io::Result<Socket> {
-        Ok(Self(self.0.duplicate()?))
+        Ok(Self(self.0.duplicate()?, self.1))
     }
 
     fn recv_with_flags(&self, buf: &mut [u8], flags: i32) -> io::Result<usize> {
-        unimplemented!()
+        let mut iof = IoFlags::empty();
+        if flags & libc::MSG_WAITALL != 0 {
+            iof.insert(IoFlags::WAITALL);
+        }
+        if flags & libc::MSG_OOB != 0 {
+            iof.insert(IoFlags::OOB);
+        }
+        if flags & libc::MSG_PEEK != 0 {
+            iof.insert(IoFlags::PEEK);
+        }
+
+        let mut ctx = twizzler_rt_abi::io::IoCtx::default().flags(iof);
+        let result = twizzler_rt_abi::io::twz_rt_fd_pread(self.0.as_raw_fd(), buf, &mut ctx)?;
+        Ok(result as usize)
     }
 
     pub fn read(&self, buf: &mut [u8]) -> io::Result<usize> {
@@ -64,7 +98,21 @@ impl Socket {
     }
 
     fn recv_from_with_flags(&self, buf: &mut [u8], flags: i32) -> io::Result<(usize, SocketAddr)> {
-        unimplemented!()
+        let mut iof = IoFlags::empty();
+        if flags & libc::MSG_WAITALL != 0 {
+            iof.insert(IoFlags::WAITALL);
+        }
+        if flags & libc::MSG_OOB != 0 {
+            iof.insert(IoFlags::OOB);
+        }
+        if flags & libc::MSG_PEEK != 0 {
+            iof.insert(IoFlags::PEEK);
+        }
+
+        let mut ctx = twizzler_rt_abi::io::IoCtx::default().flags(iof);
+        let result = twizzler_rt_abi::io::twz_rt_fd_pread_from(self.0.as_raw_fd(), buf, &mut ctx)?;
+        let addr: twizzler_rt_abi::fd::SocketAddress = result.1.try_into()?;
+        Ok((result.0 as usize, addr.into()))
     }
 
     pub fn recv_from(&self, buf: &mut [u8]) -> io::Result<(usize, SocketAddr)> {
@@ -88,31 +136,76 @@ impl Socket {
     }
 
     pub fn set_timeout(&self, dur: Option<Duration>, kind: i32) -> io::Result<()> {
-        unimplemented!()
+        let millis = dur.map_or(0, |d| d.as_millis() as u64);
+        twizzler_rt_abi::io::twz_rt_fd_set_config::<u64>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_READTIMEOUT,
+            millis,
+        )?;
+        Ok(())
     }
 
     pub fn timeout(&self, kind: i32) -> io::Result<Option<Duration>> {
-        unimplemented!()
+        let millis = twizzler_rt_abi::io::twz_rt_fd_get_config::<u64>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_READTIMEOUT,
+        )?;
+        if millis == 0 {
+            return Ok(None);
+        }
+        Ok(Some(Duration::from_millis(millis)))
     }
 
     pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
-        unimplemented!()
+        let (r, w) = match how {
+            Shutdown::Read => (true, false),
+            Shutdown::Write => (false, true),
+            Shutdown::Both => (true, true),
+        };
+        twizzler_rt_abi::fd::twz_rt_fd_shutdown(self.0.as_raw_fd(), r, w)?;
+        Ok(())
     }
 
     pub fn set_linger(&self, linger: Option<Duration>) -> io::Result<()> {
-        unimplemented!()
+        let millis = linger.map_or(0, |d| d.as_millis() as u64);
+        twizzler_rt_abi::io::twz_rt_fd_set_config::<u64>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_LINGER,
+            millis,
+        )?;
+        Ok(())
     }
 
     pub fn linger(&self) -> io::Result<Option<Duration>> {
-        unimplemented!()
+        let millis = twizzler_rt_abi::io::twz_rt_fd_get_config::<u64>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_LINGER,
+        )?;
+        if millis == 0 {
+            return Ok(None);
+        }
+        Ok(Some(Duration::from_millis(millis)))
     }
 
     pub fn set_nodelay(&self, nodelay: bool) -> io::Result<()> {
-        unimplemented!()
+        let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
+        )?;
+        let reg = twizzler_rt_abi::io::twz_rt_fd_set_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
+            reg | twizzler_rt_abi::bindings::SOCKET_FLAGS_NODELAY,
+        )?;
+        Ok(())
     }
 
     pub fn nodelay(&self) -> io::Result<bool> {
-        unimplemented!()
+        let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
+        )?;
+        Ok((reg & twizzler_rt_abi::bindings::SOCKET_FLAGS_NODELAY) != 0)
     }
 
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
@@ -128,48 +221,86 @@ impl Socket {
         self.0.as_raw_fd()
     }
 
-    pub fn set_read_timeout(&self, _: Option<Duration>) -> io::Result<()> {
-        Ok(())
+    pub fn set_read_timeout(&self, dur: Option<Duration>) -> io::Result<()> {
+        self.set_timeout(dur, libc::SO_RCVTIMEO)
     }
 
-    pub fn set_write_timeout(&self, _: Option<Duration>) -> io::Result<()> {
-        Ok(())
+    pub fn set_write_timeout(&self, dur: Option<Duration>) -> io::Result<()> {
+        self.set_timeout(dur, libc::SO_SNDTIMEO)
     }
 
     pub fn read_timeout(&self) -> io::Result<Option<Duration>> {
-        Ok(None)
+        self.timeout(libc::SO_RCVTIMEO)
     }
 
     pub fn write_timeout(&self) -> io::Result<Option<Duration>> {
-        Ok(None)
+        self.timeout(libc::SO_SNDTIMEO)
     }
 
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
-        todo!()
+        let addr = twizzler_rt_abi::io::twz_rt_fd_get_config::<twizzler_rt_abi::fd::SocketAddress>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_PEER,
+        )?;
+        Ok(addr.into())
     }
 
     pub fn socket_addr(&self) -> io::Result<SocketAddr> {
-        todo!()
+        let addr = twizzler_rt_abi::io::twz_rt_fd_get_config::<twizzler_rt_abi::fd::SocketAddress>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_ADDR,
+        )?;
+        Ok(addr.into())
     }
 
-    pub fn set_ttl(&self, _ttl: u32) -> io::Result<()> {
-        todo!()
+    pub fn set_ttl(&self, ttl: u32) -> io::Result<()> {
+        twizzler_rt_abi::io::twz_rt_fd_set_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_TTL,
+            ttl,
+        )?;
+        Ok(())
     }
 
     pub fn ttl(&self) -> io::Result<u32> {
-        todo!()
+        let val = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_TTL,
+        )?;
+        Ok(val)
     }
 
     pub fn set_only_v6(&self, _: bool) -> io::Result<()> {
-        todo!()
+        let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
+        )?;
+        let reg = twizzler_rt_abi::io::twz_rt_fd_set_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
+            reg | twizzler_rt_abi::bindings::SOCKET_FLAGS_ONLYV6,
+        )?;
+        Ok(())
     }
 
     pub fn only_v6(&self) -> io::Result<bool> {
-        todo!()
+        let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
+        )?;
+        Ok((reg & twizzler_rt_abi::bindings::SOCKET_FLAGS_ONLYV6) != 0)
     }
 
-    pub fn send_to(&self, _: &[u8], _: &SocketAddr) -> io::Result<usize> {
-        unsupported()
+    pub fn send_to(&self, buf: &[u8], addr: &SocketAddr) -> io::Result<usize> {
+        let mut ctx = twizzler_rt_abi::io::IoCtx::default();
+        let addr: twizzler_rt_abi::fd::SocketAddress = (*addr).into();
+        let result = twizzler_rt_abi::io::twz_rt_fd_pwrite_to(
+            self.0.as_raw_fd(),
+            buf,
+            &mut ctx,
+            addr.into(),
+        )?;
+        Ok(result as usize)
     }
 }
 
@@ -188,7 +319,7 @@ impl IntoInner<FileDesc> for Socket {
 
 impl FromInner<FileDesc> for Socket {
     fn from_inner(file_desc: FileDesc) -> Self {
-        Self(file_desc)
+        Self(file_desc, ProtKind::Stream)
     }
 }
 
@@ -205,10 +336,12 @@ impl AsRawFd for Socket {
     }
 }
 
-use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut};
-use crate::net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr};
-use crate::sys::unsupported;
-use crate::time::Duration;
+use crate::{
+    io::{self, BorrowedCursor, IoSlice, IoSliceMut},
+    net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr},
+    sys::unsupported,
+    time::Duration,
+};
 
 #[derive(Debug)]
 pub struct TcpStream(Socket);
@@ -223,13 +356,14 @@ impl TcpStream {
     }
 
     pub fn connect<A: ToSocketAddrs>(a: A) -> io::Result<TcpStream> {
-        let socket = Socket::new(&a.to_socket_addrs()?.next().unwrap(), libc::SOCK_STREAM)?;
+        let socket = Socket::new(libc::AF_INET, libc::SOCK_STREAM)?;
+        socket.connect(a)?;
         Ok(Self(socket))
     }
 
     pub fn connect_timeout(a: &SocketAddr, d: Duration) -> io::Result<TcpStream> {
-        // TODO: timeout
-        let socket = Socket::new(&a, libc::SOCK_STREAM)?;
+        let socket = Socket::new(libc::AF_INET, libc::SOCK_STREAM)?;
+        socket.connect_timeout(a, d)?;
         Ok(Self(socket))
     }
 
@@ -342,8 +476,22 @@ impl TcpListener {
         self.0
     }
 
-    pub fn bind<A: ToSocketAddrs>(_: A) -> io::Result<TcpListener> {
-        unsupported()
+    pub fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<TcpListener> {
+        let socket = Socket::new(libc::AF_INET, libc::SOCK_STREAM)?;
+        let mut res: io::Result<TcpListener> = Err(crate::io::ErrorKind::HostUnreachable.into());
+        for addr in addr.to_socket_addrs()? {
+            let thisres = twizzler_rt_abi::fd::twz_rt_fd_socket_rebind(
+                socket.0.as_raw_fd(),
+                addr.into(),
+                0,
+                ProtKind::Stream,
+            );
+            res = match thisres {
+                Ok(_) => return Ok(Self(socket)),
+                Err(e) => Err(e.into()),
+            };
+        }
+        res
     }
 
     pub fn socket_addr(&self) -> io::Result<SocketAddr> {
@@ -351,7 +499,10 @@ impl TcpListener {
     }
 
     pub fn accept(&self) -> io::Result<(TcpStream, SocketAddr)> {
-        todo!()
+        let res = twizzler_rt_abi::fd::twz_rt_fd_open_socket_accept(self.0.as_raw_fd(), 0)?;
+        let socket = Socket(unsafe { FileDesc::from_raw_fd(res) }, ProtKind::Stream);
+        let addr = socket.peer_addr()?;
+        Ok((TcpStream(socket), addr))
     }
 
     pub fn duplicate(&self) -> io::Result<TcpListener> {
@@ -395,8 +546,22 @@ impl UdpSocket {
         self.0
     }
 
-    pub fn bind<A: ToSocketAddrs>(_: A) -> io::Result<UdpSocket> {
-        unsupported()
+    pub fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<UdpSocket> {
+        let socket = Socket::new(libc::AF_INET, libc::SOCK_DGRAM)?;
+        let mut res: io::Result<UdpSocket> = Err(crate::io::ErrorKind::HostUnreachable.into());
+        for addr in addr.to_socket_addrs()? {
+            let thisres = twizzler_rt_abi::fd::twz_rt_fd_socket_rebind(
+                socket.0.as_raw_fd(),
+                addr.into(),
+                0,
+                socket.1,
+            );
+            res = match thisres {
+                Ok(_) => return Ok(Self(socket)),
+                Err(e) => Err(e.into()),
+            };
+        }
+        Ok(res?)
     }
 
     pub fn peer_addr(&self) -> io::Result<SocketAddr> {
@@ -515,8 +680,22 @@ impl UdpSocket {
         self.0.write(buf)
     }
 
-    pub fn connect<A: ToSocketAddrs>(&self, a: A) -> io::Result<()> {
-        todo!()
+    pub fn connect<A: ToSocketAddrs>(&self, addr: A) -> io::Result<()> {
+        let mut res = Ok(());
+        for addr in addr.to_socket_addrs()? {
+            let addr = twizzler_rt_abi::fd::SocketAddress::from(addr);
+            let thisres = twizzler_rt_abi::fd::twz_rt_fd_socket_reconnect(
+                self.0.as_raw_fd(),
+                addr,
+                0,
+                self.0 .1,
+            );
+            if thisres.is_ok() {
+                return Ok(());
+            }
+            res = thisres.into();
+        }
+        Ok(res?)
     }
 }
 
@@ -607,43 +786,6 @@ impl FromInner<Socket> for UdpSocket {
         Self(file_desc)
     }
 }
-
-/*
-#[allow(nonstandard_style)]
-pub mod netc {
-    pub const AF_INET: u8 = 0;
-    pub const AF_INET6: u8 = 1;
-    pub type sa_family_t = u8;
-
-    #[derive(Copy, Clone)]
-    pub struct in_addr {
-        pub s_addr: u32,
-    }
-
-    #[derive(Copy, Clone)]
-    pub struct sockaddr_in {
-        #[allow(dead_code)]
-        pub sin_family: sa_family_t,
-        pub sin_port: u16,
-        pub sin_addr: in_addr,
-    }
-
-    #[derive(Copy, Clone)]
-    pub struct in6_addr {
-        pub s6_addr: [u8; 16],
-    }
-
-    #[derive(Copy, Clone)]
-    pub struct sockaddr_in6 {
-        #[allow(dead_code)]
-        pub sin6_family: sa_family_t,
-        pub sin6_port: u16,
-        pub sin6_addr: in6_addr,
-        pub sin6_flowinfo: u32,
-        pub sin6_scope_id: u32,
-    }
-}
-*/
 
 pub fn lookup_host(_host: &str, _port: u16) -> io::Result<LookupHost> {
     unsupported()
