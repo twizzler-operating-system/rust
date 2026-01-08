@@ -2,13 +2,13 @@
 #![allow(dead_code)]
 
 use libc::MSG_PEEK;
-use twizzler_rt_abi::{fd::ProtKind, io::IoFlags};
+use twizzler_rt_abi::fd::ProtKind;
+use twizzler_rt_abi::io::IoFlags;
 
-use crate::{
-    net::ToSocketAddrs,
-    os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, RawFd},
-    sys::{fd::FileDesc, AsInner, FromInner, IntoInner},
-};
+use crate::net::ToSocketAddrs;
+use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, RawFd};
+use crate::sys::fd::FileDesc;
+use crate::sys::{AsInner, FromInner, IntoInner};
 
 #[derive(Debug)]
 pub struct Socket(FileDesc, ProtKind);
@@ -25,7 +25,7 @@ impl Socket {
             libc::AF_INET6 => (Ipv6Addr::UNSPECIFIED, 0).into(),
             _ => return unsupported(),
         };
-        let fd = twizzler_rt_abi::fd::twz_rt_fd_open_socket_bind(addr.into(), 0, prot)?;
+        let fd = twizzler_rt_abi::fd::twz_rt_fd_open_socket(0, prot)?;
 
         Ok(Self(unsafe { FileDesc::from_raw_fd(fd) }, prot))
     }
@@ -336,12 +336,10 @@ impl AsRawFd for Socket {
     }
 }
 
-use crate::{
-    io::{self, BorrowedCursor, IoSlice, IoSliceMut},
-    net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr},
-    sys::unsupported,
-    time::Duration,
-};
+use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut};
+use crate::net::{Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr};
+use crate::sys::unsupported;
+use crate::time::Duration;
 
 #[derive(Debug)]
 pub struct TcpStream(Socket);
@@ -688,7 +686,7 @@ impl UdpSocket {
                 self.0.as_raw_fd(),
                 addr,
                 0,
-                self.0 .1,
+                self.0.1,
             );
             if thisres.is_ok() {
                 return Ok(());
