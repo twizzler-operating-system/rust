@@ -892,7 +892,7 @@ dependencies = [
  "mdbook-preprocessor",
  "once_cell",
  "pathdiff",
- "pulldown-cmark 0.10.3",
+ "railroad",
  "regex",
  "semver",
  "serde_json",
@@ -1253,6 +1253,15 @@ name = "r-efi"
 version = "5.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
+
+[[package]]
+name = "railroad"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6d5b8e8a7c20c600f9b98cbf46b64e63d5c9e69deb98cee1ff264de9f1dda5d"
+dependencies = [
+ "unicode-width",
+]
 
 [[package]]
 name = "redox_syscall"

@@ -350,6 +350,19 @@ fn copy_llvm_libcxx(
     (libcxx_target, libcxxabi_target)
 }
 
+fn copy_mlibc_libc(
+    builder: &Builder<'_>,
+    target: TargetSelection,
+    libdir: &Path,
+) -> PathBuf {
+    let libc_path = builder.ensure(llvm::Libc { target });
+    let libc_source = libc_path.join("libc.a");
+    let libc_target = libdir.join("libc.a");
+
+    builder.copy_link(&libc_source, &libc_target, FileType::NativeLibrary);
+    libc_target
+}
+
 /// Copies third party objects needed by various targets.
 fn copy_third_party_objects(
     builder: &Builder<'_>,
@@ -386,6 +399,10 @@ fn copy_third_party_objects(
             copy_llvm_libcxx(builder, target, &builder.sysroot_target_libdir(*compiler, target));
         target_deps.push((libcxx_path.0, DependencyType::Target));
         target_deps.push((libcxx_path.1, DependencyType::Target));
+
+        let libc_path =
+            copy_mlibc_libc(builder, target, &builder.sysroot_target_libdir(*compiler, target));
+        target_deps.push((libc_path, DependencyType::Target));
     }
 
     target_deps

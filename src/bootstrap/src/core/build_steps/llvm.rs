@@ -12,7 +12,9 @@ use std::env::consts::EXE_EXTENSION;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use std::process::Command;
 use std::{env, fs};
+use std::fs::File;
 
 use build_helper::exit;
 use build_helper::git::PathFreshness;
@@ -1396,15 +1398,8 @@ impl Step for Sanitizers {
             cfg.define("COMPILER_RT_BUILD_SANITIZERS", "OFF");
             cfg.define("COMPILER_RT_BAREMETAL_BUILD", "ON");
             cfg.cflag("-nostdlib");
-            let root = builder.src.join("src/llvm-project/libunwind");
-            let mut bootstrap_path = root.clone();
-            bootstrap_path.push("../../../../bootstrap-include");
-            cfg.cflag("-I");
-            cfg.cflag(&bootstrap_path);
             cfg.cflag("-fno-stack-protector");
             cfg.target(&self.target.triple).host(&builder.config.host_target.triple);
-            cfg.asmflag("-I");
-            cfg.asmflag(&bootstrap_path);
             cfg.asmflag("-target");
             cfg.asmflag(&self.target.triple);
             cfg.asmflag("-nostdinc");
@@ -1825,7 +1820,7 @@ impl Step for Libcxx {
     }
 
     fn make_run(run: RunConfig<'_>) {
-        run.builder.ensure(Libcxx { target: run.target });
+        run.builder.ensure(Libc { target: run.target });
     }
 
     /// Build libcxx
@@ -1838,6 +1833,7 @@ impl Step for Libcxx {
         if builder.config.dry_run() {
             return (PathBuf::new(), PathBuf::new());
         }
+        let _libc_path = builder.ensure(Libc { target: self.target });
 
         let out_dir = builder.native_dir(self.target).join("libcxx");
         let root = builder.src.join("src/llvm-project/libcxx");
@@ -1855,7 +1851,7 @@ impl Step for Libcxx {
         cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
 
         let ldflags = LdFlags::default();
-        configure_cmake(builder, self.target, &mut cfg, true, ldflags, &[]);
+        configure_cmake(builder, self.target, &mut cfg, true, ldflags, CcFlags::default(), &[]);
         configure_llvm(builder, self.target, &mut cfg);
 
         //cfg.define("LLVM_CMAKE_DIR", root.join("cmake")).define("LLVM_INCLUDE_TESTS", "OFF");
@@ -1900,7 +1896,7 @@ impl Step for Libcxxabi {
     }
 
     fn make_run(run: RunConfig<'_>) {
-        run.builder.ensure(Libcxx { target: run.target });
+        run.builder.ensure(Libcxxabi { target: run.target });
     }
 
     /// Build libcxxabi
@@ -1929,7 +1925,7 @@ impl Step for Libcxxabi {
         cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
 
         let ldflags = LdFlags::default();
-        configure_cmake(builder, self.target, &mut cfg, true, ldflags, &[]);
+        configure_cmake(builder, self.target, &mut cfg, true, ldflags, CcFlags::default(), &[]);
         configure_llvm(builder, self.target, &mut cfg);
 
         //cfg.define("LLVM_CMAKE_DIR", root.join("cmake")).define("LLVM_INCLUDE_TESTS", "OFF");
@@ -1958,5 +1954,122 @@ impl Step for Libcxxabi {
             .unwrap();
 
         out_dir
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Libc {
+    pub target: TargetSelection,
+}
+
+impl Step for Libc {
+    type Output = PathBuf;
+
+    fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
+        run.path("../mlibc")
+    }
+
+    fn make_run(run: RunConfig<'_>) {
+        run.builder.ensure(Libc { target: run.target });
+    }
+
+    /// Build libcxxabi
+    fn run(self, builder: &Builder<'_>) -> Self::Output {
+        use std::io::Write;
+        if builder.config.dry_run() {
+            return PathBuf::new();
+        }
+
+        let root = builder.src.join("../mlibc");
+        let build_dir_name = format!("build-{}", self.target.triple);
+        let build_dir = root.join(&build_dir_name);
+
+        if up_to_date(&root, &build_dir.join("libc.a")) {
+            return build_dir;
+        }
+
+        let _guard = builder.msg_unstaged(Kind::Build, "libc.a", self.target);
+        t!(fs::create_dir_all(&build_dir));
+
+        let mlibc_sysroot = builder.src.join(format!("../../install/sysroots/{}", self.target.triple));
+        let cross_file = format!("{}/meson-cross-twizzler.txt", mlibc_sysroot.display());
+
+        let mut cf = t!(File::create(&cross_file));
+
+        t!(writeln!(&mut cf, "[binaries]"));
+        for tool in [
+            ("c", "clang"),
+            ("cpp", "clang++"),
+            ("ar", "llvm-ar"),
+            ("strip", "llvm-strip"),
+        ] {
+            let llvm_bin_path = builder.src.join("build/host/llvm/bin");
+            let path = llvm_bin_path.join(tool.1);
+            t!(writeln!(&mut cf, "{} = '{}'", tool.0, path.display()));
+        }
+
+        t!(writeln!(&mut cf, "[built-in options]"));
+        let lld_path = builder.src.join("build/host/lld/bin");
+        for tool in ["c_args", "c_link_args", "cpp_args", "cpp_link_args"] {
+            t!(writeln!(
+                &mut cf,
+                "{} = ['-B{}', '-isysroot', '{}', '--sysroot', '{}', '-target', '{}']",
+                tool,
+                lld_path.display(),
+                mlibc_sysroot.display(),
+                mlibc_sysroot.display(),
+                self.target.triple,
+            ));
+        }
+
+        t!(writeln!(&mut cf, "[properties]"));
+        t!(writeln!(&mut cf, "sys_root = '{}'", mlibc_sysroot.display()));
+
+        t!(writeln!(&mut cf, "[host_machine]"));
+        t!(writeln!(&mut cf, "system = 'twizzler'"));
+        t!(writeln!(&mut cf, "cpu_family = '{}'", self.target.triple.split("-").next().unwrap()));
+        t!(writeln!(&mut cf, "cpu = '{}'", self.target.triple.split("-").next().unwrap()));
+        t!(writeln!(&mut cf, "endian = 'little'"));
+        drop(cf);
+
+        let _ = std::fs::remove_dir_all(&build_dir);
+
+        let status = t!(Command::new("meson")
+            .arg("setup")
+            .arg(format!("-Dprefix={}", mlibc_sysroot.display()))
+            .arg("-Ddefault_library=static")
+            .arg("-Dlibgcc_dependency=false")
+            .arg("-Duse_freestnd_hdrs=enabled")
+            .arg(format!("--cross-file={}", cross_file))
+            .arg("--buildtype=debugoptimized")
+            .arg(&build_dir_name)
+            .current_dir(&root)
+            .status());
+        if !status.success() {
+            t!(Err(std::io::Error::other("failed to setup meson for libc")));
+        }
+
+        let status = t!(Command::new("meson")
+            .arg("compile")
+            .arg("-C")
+            .arg(&build_dir_name)
+            .current_dir(&root)
+            .status());
+        if !status.success() {
+            t!(Err(std::io::Error::other("failed to build libc")));
+        }
+
+        let status = t!(Command::new("meson")
+              .arg("install")
+              .arg("-q")
+              .arg("-C")
+              .arg(&build_dir_name)
+              .current_dir(&root)
+              .status());
+          if !status.success() {
+              t!(Err(std::io::Error::other("failed to install libc")));
+          }
+
+        build_dir
     }
 }

@@ -35,17 +35,8 @@ impl FileDesc {
         Ok(result as usize)
     }
 
-    pub fn read_buf(&self, mut buf: BorrowedCursor<'_>) -> io::Result<()> {
-        let slice = unsafe {
-            core::slice::from_raw_parts_mut(buf.as_mut().as_mut_ptr().cast(), buf.capacity())
-        };
-        let mut ctx = twizzler_rt_abi::io::IoCtx::default();
-        let ret = twizzler_rt_abi::io::twz_rt_fd_pread(self.as_raw_fd(), slice, &mut ctx)?;
-        // Safety: `ret` bytes were written to the initialized portion of the buffer
-        unsafe {
-            buf.advance(ret as usize);
-        }
-        Ok(())
+    pub fn read_buf(&self, buf: BorrowedCursor<'_>) -> io::Result<()> {
+        crate::io::default_read_buf(|buf| self.read(buf), buf)
     }
 
     pub fn write_vectored(&self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
