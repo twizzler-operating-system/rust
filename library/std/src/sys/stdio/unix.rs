@@ -5,9 +5,6 @@ use libc::{EBADF, STDERR_FILENO, STDIN_FILENO, STDOUT_FILENO};
 
 use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut};
 use crate::mem::ManuallyDrop;
-#[cfg(not(target_os = "twizzler"))]
-use crate::os::fd::FromRawFd;
-#[cfg(target_os = "twizzler")]
 use crate::os::fd::FromRawFd;
 use crate::sys::fd::FileDesc;
 

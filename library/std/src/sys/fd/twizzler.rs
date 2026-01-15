@@ -76,6 +76,7 @@ impl FileDesc {
     }
 
     pub fn duplicate_path(&self, _path: &[u8]) -> io::Result<FileDesc> {
+        eprintln!("dup_path");
         unsupported()
     }
 
@@ -84,10 +85,12 @@ impl FileDesc {
     }
 
     pub fn set_cloexec(&self) -> io::Result<()> {
+        eprintln!("set_cloexec");
         unsupported()
     }
 
     pub fn set_nonblocking(&self, _nonblocking: bool) -> io::Result<()> {
+        eprintln!("set_nonblocking");
         unsupported()
     }
 
