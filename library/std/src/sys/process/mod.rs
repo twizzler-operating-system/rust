@@ -4,8 +4,8 @@ cfg_select! {
         use unix as imp;
     }
     target_os = "twizzler" => {
-        mod unsupported;
-        use unsupported as imp;
+        mod unix;
+        use unix as imp;
     }
     target_os = "windows" => {
         mod windows;
@@ -47,6 +47,7 @@ pub use imp::{
         ))
     ),
     target_os = "windows",
+    target_os = "twizzler",
     target_os = "motor"
 ))]
 pub fn output(cmd: &mut Command) -> crate::io::Result<(ExitStatus, Vec<u8>, Vec<u8>)> {
@@ -85,6 +86,7 @@ pub fn output(cmd: &mut Command) -> crate::io::Result<(ExitStatus, Vec<u8>, Vec<
         ))
     ),
     target_os = "windows",
+    target_os = "twizzler",
     target_os = "motor"
 )))]
 pub use imp::output;

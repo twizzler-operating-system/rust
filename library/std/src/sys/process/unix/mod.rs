@@ -9,6 +9,10 @@ cfg_select! {
         mod fuchsia;
         use fuchsia as imp;
     }
+    target_os = "twizzler" => {
+        mod twizzler;
+        use twizzler as imp;
+    }
     target_os = "vxworks" => {
         mod vxworks;
         use vxworks as imp;

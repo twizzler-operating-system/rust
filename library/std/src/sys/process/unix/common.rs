@@ -15,7 +15,7 @@ use crate::path::Path;
 use crate::process::StdioPipes;
 use crate::sys::fd::FileDesc;
 use crate::sys::fs::File;
-#[cfg(not(any(target_os = "fuchsia", target_os = "twizzler")))]
+#[cfg(not(target_os = "fuchsia"))]
 use crate::sys::fs::OpenOptions;
 use crate::sys::pipe::pipe;
 use crate::sys::process::env::{CommandEnv, CommandEnvs};

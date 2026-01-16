@@ -1,8 +1,10 @@
+use crate::io;
 #[cfg(target_os = "twizzler")]
 use crate::os::fd::AsRawFd;
+use crate::os::fd::FromRawFd;
+use crate::sys::fd::FileDesc;
 #[cfg(not(target_os = "twizzler"))]
 use crate::sys::pal::cvt;
-use crate::{io, os::fd::FromRawFd, sys::fd::FileDesc};
 
 pub type Pipe = FileDesc;
 
@@ -30,7 +32,7 @@ pub fn pipe() -> io::Result<(Pipe, Pipe)> {
             }
         }
         target_os = "twizzler" => {
-            let fd = twizzler_rt_abi::fd::twz_rt_fd_open_pipe(0)?;
+            let fd = twizzler_rt_abi::fd::twz_rt_fd_open_pipe(None, twizzler_rt_abi::bindings::OPEN_FLAG_READ | twizzler_rt_abi::bindings::OPEN_FLAG_WRITE)?;
             let pipe = unsafe {Pipe::from_raw_fd(fd)};
             let pipe2 = pipe.duplicate()?;
             twizzler_rt_abi::fd::twz_rt_fd_shutdown(pipe.as_raw_fd(), false, true)?;
