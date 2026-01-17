@@ -2,10 +2,11 @@
 //!
 //! [`std::process`]: crate::process
 
+#![allow(unsafe_op_in_unsafe_fn)]
 #![stable(feature = "rust1", since = "1.0.0")]
 
 use crate::ffi::OsStr;
-use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
+use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::path::Path;
 use crate::sealed::Sealed;
 use crate::sys::process::ChildPipe;

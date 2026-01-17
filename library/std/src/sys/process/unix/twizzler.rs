@@ -171,6 +171,7 @@ impl Process {
     }
 
     pub fn send_signal(&self, signal: i32) -> io::Result<()> {
+        let signal = signal as u64;
         let raw = self.handle.as_raw_fd();
         twizzler_rt_abi::io::twz_rt_fd_set_config(
             raw,

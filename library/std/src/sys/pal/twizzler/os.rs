@@ -77,3 +77,7 @@ pub fn exit(code: i32) -> ! {
 pub fn getpid() -> u32 {
     unimplemented!()
 }
+
+pub fn getppid() -> u32 {
+    unimplemented!()
+}

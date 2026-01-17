@@ -4,6 +4,9 @@
 pub mod ffi;
 pub mod fs;
 
+#[path = "../unix/process.rs"]
+pub mod process;
+
 /// A prelude for conveniently writing platform-specific code.
 ///
 /// Includes all extension traits, and some important type definitions.
@@ -12,6 +15,9 @@ pub mod prelude {
     #[doc(no_inline)]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub use super::ffi::{OsStrExt, OsStringExt};
+    #[doc(no_inline)]
+    #[stable(feature = "rust1", since = "1.0.0")]
+    pub use super::process::{ChildExt, ExitStatusExt};
     #[doc(no_inline)]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
