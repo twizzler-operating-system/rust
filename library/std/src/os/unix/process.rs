@@ -421,12 +421,28 @@ pub trait ChildExt: Sealed {
     /// }
     /// ```
     fn send_signal(&self, signal: i32) -> io::Result<()>;
+
+    #[cfg(target_os = "twizzler")]
+    fn is_ready(&self) -> io::Result<bool>;
+
+    #[cfg(target_os = "twizzler")]
+    fn wait_ready(&mut self) -> io::Result<()>;
 }
 
 #[unstable(feature = "unix_send_signal", issue = "141975")]
 impl ChildExt for process::Child {
     fn send_signal(&self, signal: i32) -> io::Result<()> {
         self.handle.send_signal(signal)
+    }
+
+    #[cfg(target_os = "twizzler")]
+    fn is_ready(&self) -> io::Result<bool> {
+        self.handle.is_ready()
+    }
+
+    #[cfg(target_os = "twizzler")]
+    fn wait_ready(&mut self) -> io::Result<()> {
+        self.handle.wait_ready()
     }
 }
 

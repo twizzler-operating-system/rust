@@ -2,7 +2,6 @@ use crate::error::Error as StdError;
 use crate::ffi::{OsStr, OsString};
 use crate::marker::PhantomData;
 use crate::path::{self, PathBuf};
-use crate::sys::unsupported;
 use crate::{fmt, io, str};
 
 pub fn errno() -> i32 {
@@ -13,12 +12,36 @@ pub fn error_string(_errno: i32) -> String {
     "operation successful".to_string()
 }
 
-pub fn getcwd() -> io::Result<PathBuf> {
-    unsupported()
+fn read_name(root: twizzler_rt_abi::fd::NameRoot) -> io::Result<PathBuf> {
+    let mut buf = Vec::with_capacity(512);
+    loop {
+        unsafe {
+            let ptr = buf.as_mut_ptr() as *mut u8;
+            let slice = core::slice::from_raw_parts_mut(ptr, buf.capacity());
+            let res = twizzler_rt_abi::fd::twz_rt_get_nameroot(root, slice)?;
+            if res < buf.capacity() {
+                buf.set_len(res);
+                buf.shrink_to_fit();
+                return Ok(PathBuf::from(String::from_utf8(buf).unwrap()));
+            }
+
+            // Trigger the internal buffer resizing logic of `Vec` by requiring
+            // more space than the current capacity.
+            let cap = buf.capacity();
+            buf.set_len(cap);
+            buf.reserve(1);
+        }
+    }
 }
 
-pub fn chdir(_: &path::Path) -> io::Result<()> {
-    unsupported()
+pub fn getcwd() -> io::Result<PathBuf> {
+    read_name(twizzler_rt_abi::fd::NameRoot::Current)
+}
+
+pub fn chdir(path: &path::Path) -> io::Result<()> {
+    let path = path.to_str().unwrap().as_bytes();
+    twizzler_rt_abi::fd::twz_rt_set_nameroot(twizzler_rt_abi::fd::NameRoot::Current, path)?;
+    Ok(())
 }
 
 pub struct SplitPaths<'a>(!, PhantomData<&'a ()>);
@@ -59,15 +82,15 @@ impl StdError for JoinPathsError {
 }
 
 pub fn current_exe() -> io::Result<PathBuf> {
-    unsupported()
+    read_name(twizzler_rt_abi::fd::NameRoot::Exe)
 }
 
 pub fn temp_dir() -> PathBuf {
-    PathBuf::from("/tmp")
+    read_name(twizzler_rt_abi::fd::NameRoot::Temp).unwrap_or_else(|_| PathBuf::from("/tmp"))
 }
 
 pub fn home_dir() -> Option<PathBuf> {
-    None
+    read_name(twizzler_rt_abi::fd::NameRoot::Home).ok()
 }
 
 pub fn exit(code: i32) -> ! {

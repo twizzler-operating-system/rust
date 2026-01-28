@@ -3,6 +3,7 @@
 use libc::c_int;
 
 use super::common::*;
+use crate::ffi::{CString, OsStr};
 use crate::num::NonZero;
 use crate::os::fd::{AsRawFd, FromRawFd};
 use crate::process::StdioPipes;
@@ -19,6 +20,23 @@ impl Command {
         default: Stdio,
         needs_stdin: bool,
     ) -> io::Result<(Process, StdioPipes)> {
+        if let Some(cwd) = self.get_cwd().map(CString::from) {
+            unsafe {
+                self.env_mut().set(
+                    OsStr::from_encoded_bytes_unchecked("TWZ_RT_INITIAL_DIR".as_bytes()),
+                    OsStr::from_encoded_bytes_unchecked(cwd.to_bytes()),
+                );
+            }
+        } else {
+            if let Ok(path) = crate::env::current_dir() {
+                unsafe {
+                    self.env_mut().set(
+                        OsStr::from_encoded_bytes_unchecked("TWZ_RT_INITIAL_DIR".as_bytes()),
+                        path.as_os_str(),
+                    );
+                }
+            }
+        }
         let envp = self.capture_env();
 
         if self.saw_nul() {
@@ -187,13 +205,13 @@ impl Process {
             if let Some(status) = self.try_wait()? {
                 return Ok(status);
             }
+            let mut buf = [0; 1];
+            self.handle.read(&mut buf)?;
         }
     }
 
     pub fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
         let raw = self.handle.as_raw_fd();
-        let mut buf = [0; 1];
-        self.handle.read(&mut buf)?;
         let status: u64 = twizzler_rt_abi::io::twz_rt_fd_get_config(
             raw,
             twizzler_rt_abi::bindings::IO_REGISTER_STATUS,
@@ -201,6 +219,27 @@ impl Process {
         let exit_status = (status & 0xffffffff) as i32;
         let terminated = status & twizzler_rt_abi::bindings::STATUS_FLAG_TERMINATED != 0;
         if terminated { Ok(Some(ExitStatus(exit_status))) } else { Ok(None) }
+    }
+
+    pub fn is_ready(&self) -> io::Result<bool> {
+        let raw = self.handle.as_raw_fd();
+        let status: u64 = twizzler_rt_abi::io::twz_rt_fd_get_config(
+            raw,
+            twizzler_rt_abi::bindings::IO_REGISTER_STATUS,
+        )?;
+        let exit_status = (status & 0xffffffff) as i32;
+        let ready = status & twizzler_rt_abi::bindings::STATUS_FLAG_READY != 0;
+        Ok(ready)
+    }
+
+    pub fn wait_ready(&mut self) -> io::Result<()> {
+        loop {
+            if self.is_ready()? {
+                return Ok(());
+            }
+            let mut buf = [0; 1];
+            self.handle.read(&mut buf)?;
+        }
     }
 }
 

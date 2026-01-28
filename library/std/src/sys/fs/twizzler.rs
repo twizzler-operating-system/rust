@@ -514,7 +514,10 @@ pub fn lstat(p: &Path) -> io::Result<FileAttr> {
 }
 
 pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
-    Ok(PathBuf::from(p))
+    let mut buf = [0; libc::PATH_MAX as usize];
+    let len =
+        twizzler_rt_abi::fd::twz_rt_canon_name(Default::default(), p.to_str().unwrap(), &mut buf)?;
+    Ok(str::from_utf8(&buf[0..len]).unwrap().into())
 }
 
 impl AsInner<FileDesc> for File {
