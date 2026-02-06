@@ -187,25 +187,34 @@ impl Socket {
         Ok(Some(Duration::from_millis(millis)))
     }
 
-    pub fn set_nodelay(&self, nodelay: bool) -> io::Result<()> {
+    fn change_flag(&self, flag: u32, set: bool) -> io::Result<()> {
         let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
             self.0.as_raw_fd(),
             twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
         )?;
+        let val = if set { reg | flag } else { reg & !flag };
         let reg = twizzler_rt_abi::io::twz_rt_fd_set_config::<u32>(
             self.0.as_raw_fd(),
             twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
-            reg | twizzler_rt_abi::bindings::SOCKET_FLAGS_NODELAY,
+            val,
         )?;
         Ok(())
     }
 
-    pub fn nodelay(&self) -> io::Result<bool> {
+    fn read_flag(&self, flag: u32) -> io::Result<bool> {
         let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
             self.0.as_raw_fd(),
             twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
         )?;
-        Ok((reg & twizzler_rt_abi::bindings::SOCKET_FLAGS_NODELAY) != 0)
+        Ok((reg & flag) != 0)
+    }
+
+    pub fn set_nodelay(&self, nodelay: bool) -> io::Result<()> {
+        self.change_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_NODELAY, nodelay)
+    }
+
+    pub fn nodelay(&self) -> io::Result<bool> {
+        self.read_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_NODELAY)
     }
 
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
@@ -270,25 +279,12 @@ impl Socket {
         Ok(val)
     }
 
-    pub fn set_only_v6(&self, _: bool) -> io::Result<()> {
-        let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
-            self.0.as_raw_fd(),
-            twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
-        )?;
-        let reg = twizzler_rt_abi::io::twz_rt_fd_set_config::<u32>(
-            self.0.as_raw_fd(),
-            twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
-            reg | twizzler_rt_abi::bindings::SOCKET_FLAGS_ONLYV6,
-        )?;
-        Ok(())
+    pub fn set_only_v6(&self, val: bool) -> io::Result<()> {
+        self.change_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_ONLYV6, val)
     }
 
     pub fn only_v6(&self) -> io::Result<bool> {
-        let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
-            self.0.as_raw_fd(),
-            twizzler_rt_abi::bindings::IO_REGISTER_SOCKET_FLAGS,
-        )?;
-        Ok((reg & twizzler_rt_abi::bindings::SOCKET_FLAGS_ONLYV6) != 0)
+        self.read_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_ONLYV6)
     }
 
     pub fn send_to(&self, buf: &[u8], addr: &SocketAddr) -> io::Result<usize> {
@@ -602,52 +598,91 @@ impl UdpSocket {
         self.0.write_timeout()
     }
 
-    pub fn set_broadcast(&self, _: bool) -> io::Result<()> {
-        unsupported()
+    pub fn set_broadcast(&self, val: bool) -> io::Result<()> {
+        self.0.change_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_BROADCAST, val)
     }
 
     pub fn broadcast(&self) -> io::Result<bool> {
-        unsupported()
+        self.0.read_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_BROADCAST)
     }
 
-    pub fn set_multicast_loop_v4(&self, _: bool) -> io::Result<()> {
-        unsupported()
+    pub fn set_multicast_loop_v4(&self, val: bool) -> io::Result<()> {
+        self.0.change_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_MULTICAST_LOOP_V4, val)
     }
 
     pub fn multicast_loop_v4(&self) -> io::Result<bool> {
-        unsupported()
+        self.0.read_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_MULTICAST_LOOP_V4)
     }
 
-    pub fn set_multicast_ttl_v4(&self, _: u32) -> io::Result<()> {
-        unsupported()
+    pub fn set_multicast_ttl_v4(&self, val: u32) -> io::Result<()> {
+        twizzler_rt_abi::io::twz_rt_fd_set_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_MULTICAST_TTL_V4,
+            val,
+        )?;
+        Ok(())
     }
 
     pub fn multicast_ttl_v4(&self) -> io::Result<u32> {
-        unsupported()
+        let val = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_MULTICAST_TTL_V4,
+        )?;
+        Ok(val)
     }
 
-    pub fn set_multicast_loop_v6(&self, _: bool) -> io::Result<()> {
-        unsupported()
+    pub fn set_multicast_loop_v6(&self, val: bool) -> io::Result<()> {
+        self.0.change_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_MULTICAST_LOOP_V6, val)
     }
 
     pub fn multicast_loop_v6(&self) -> io::Result<bool> {
-        unsupported()
+        self.0.read_flag(twizzler_rt_abi::bindings::SOCKET_FLAGS_MULTICAST_LOOP_V6)
     }
 
-    pub fn join_multicast_v4(&self, _: &Ipv4Addr, _: &Ipv4Addr) -> io::Result<()> {
-        unsupported()
+    pub fn join_multicast_v4(&self, a: &Ipv4Addr, b: &Ipv4Addr) -> io::Result<()> {
+        let a = (*a).into();
+        let b = (*b).into();
+        twizzler_rt_abi::io::twz_rt_fd_set_config::<(
+            twizzler_rt_abi::fd::SocketAddress,
+            twizzler_rt_abi::fd::SocketAddress,
+            bool,
+        )>(
+            self.0.as_raw_fd(), twizzler_rt_abi::bindings::IO_REGISTER_MULTICAST_V4, (a, b, true)
+        )?;
+        Ok(())
     }
 
-    pub fn join_multicast_v6(&self, _: &Ipv6Addr, _: u32) -> io::Result<()> {
-        unsupported()
+    pub fn join_multicast_v6(&self, a: &Ipv6Addr, b: u32) -> io::Result<()> {
+        let a = (*a).into();
+        twizzler_rt_abi::io::twz_rt_fd_set_config::<(twizzler_rt_abi::fd::SocketAddress, u32, bool)>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_MULTICAST_V6,
+            (a, b, true),
+        )?;
+        Ok(())
     }
 
-    pub fn leave_multicast_v4(&self, _: &Ipv4Addr, _: &Ipv4Addr) -> io::Result<()> {
-        unsupported()
+    pub fn leave_multicast_v4(&self, a: &Ipv4Addr, b: &Ipv4Addr) -> io::Result<()> {
+        let a = (*a).into();
+        let b = (*b).into();
+        twizzler_rt_abi::io::twz_rt_fd_set_config::<(
+            twizzler_rt_abi::fd::SocketAddress,
+            twizzler_rt_abi::fd::SocketAddress,
+            bool,
+        )>(
+            self.0.as_raw_fd(), twizzler_rt_abi::bindings::IO_REGISTER_MULTICAST_V4, (a, b, false)
+        )?;
+        Ok(())
     }
 
-    pub fn leave_multicast_v6(&self, _: &Ipv6Addr, _: u32) -> io::Result<()> {
-        unsupported()
+    pub fn leave_multicast_v6(&self, a: &Ipv6Addr, b: u32) -> io::Result<()> {
+        let a = (*a).into();
+        twizzler_rt_abi::io::twz_rt_fd_set_config::<(twizzler_rt_abi::fd::SocketAddress, u32, bool)>(
+            self.0.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_MULTICAST_V6,
+            (a, b, false),
+        )?;
+        Ok(())
     }
 
     pub fn set_ttl(&self, ttl: u32) -> io::Result<()> {
@@ -697,34 +732,47 @@ impl UdpSocket {
     }
 }
 
-pub struct LookupHost(!);
+pub struct LookupHost(Vec<twizzler_rt_abi::fd::SocketAddress>, usize, u16);
 
 impl LookupHost {
     pub fn port(&self) -> u16 {
-        self.0
+        self.2
     }
 }
 
 impl Iterator for LookupHost {
     type Item = SocketAddr;
     fn next(&mut self) -> Option<SocketAddr> {
-        self.0
+        if self.1 < self.0.len() {
+            let item = self.0[self.1];
+            self.1 += 1;
+            return Some(item.into());
+        }
+        None
     }
+}
+
+fn do_make_lookup_host(s: &str, port: Option<u16>) -> io::Result<LookupHost> {
+    let s = if let Some(port) = port { format!("{}:{}", s, port) } else { s.to_string() };
+    let mut addrs = vec![twizzler_rt_abi::fd::SocketAddress::default(); 8];
+    let len = twizzler_rt_abi::fd::twz_rt_socket_names(s, &mut addrs)?.min(addrs.len());
+    addrs.truncate(len);
+    Ok(LookupHost(addrs, 0, port.unwrap_or(0)))
 }
 
 impl TryFrom<&str> for LookupHost {
     type Error = io::Error;
 
-    fn try_from(_v: &str) -> io::Result<LookupHost> {
-        unsupported()
+    fn try_from(v: &str) -> io::Result<LookupHost> {
+        do_make_lookup_host(v, None)
     }
 }
 
 impl<'a> TryFrom<(&'a str, u16)> for LookupHost {
     type Error = io::Error;
 
-    fn try_from(_v: (&'a str, u16)) -> io::Result<LookupHost> {
-        unsupported()
+    fn try_from(v: (&'a str, u16)) -> io::Result<LookupHost> {
+        do_make_lookup_host(v.0, Some(v.1))
     }
 }
 
@@ -785,6 +833,6 @@ impl FromInner<Socket> for UdpSocket {
     }
 }
 
-pub fn lookup_host(_host: &str, _port: u16) -> io::Result<LookupHost> {
-    unsupported()
+pub fn lookup_host(host: &str, port: u16) -> io::Result<LookupHost> {
+    do_make_lookup_host(host, Some(port))
 }

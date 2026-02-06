@@ -5,7 +5,7 @@ use twizzler_rt_abi::io::SeekFrom as InnerSeek;
 use crate::io::SeekFrom::{Current, End, Start};
 use crate::io::{self, BorrowedCursor, IoSlice, IoSliceMut, Read, SeekFrom};
 use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
-use crate::sys::{AsInner, FromInner, IntoInner, unsupported};
+use crate::sys::{AsInner, FromInner, IntoInner};
 
 // A abstraction that can do continious IO on a set of Twizzler objects
 #[derive(Debug)]
@@ -75,23 +75,40 @@ impl FileDesc {
         })
     }
 
-    pub fn duplicate_path(&self, _path: &[u8]) -> io::Result<FileDesc> {
-        eprintln!("dup_path");
-        unsupported()
+    fn change_flag(&self, flag: u32, set: bool) -> io::Result<()> {
+        let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
+            self.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_IO_FLAGS,
+        )?;
+        let val = if set { reg | flag } else { reg & !flag };
+        twizzler_rt_abi::io::twz_rt_fd_set_config::<u32>(
+            self.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_IO_FLAGS,
+            val,
+        )?;
+        Ok(())
+    }
+
+    fn read_flag(&self, flag: u32) -> io::Result<bool> {
+        let reg = twizzler_rt_abi::io::twz_rt_fd_get_config::<u32>(
+            self.as_raw_fd(),
+            twizzler_rt_abi::bindings::IO_REGISTER_IO_FLAGS,
+        )?;
+        Ok((reg & flag) != 0)
     }
 
     pub fn nonblocking(&self) -> io::Result<bool> {
-        Ok(false)
+        let val = self.read_flag(twizzler_rt_abi::bindings::IO_NONBLOCKING)?;
+        Ok(val)
     }
 
     pub fn set_cloexec(&self) -> io::Result<()> {
-        eprintln!("set_cloexec");
-        unsupported()
+        Ok(())
     }
 
-    pub fn set_nonblocking(&self, _nonblocking: bool) -> io::Result<()> {
-        eprintln!("set_nonblocking");
-        unsupported()
+    pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<()> {
+        self.change_flag(twizzler_rt_abi::bindings::IO_NONBLOCKING, nonblocking)?;
+        Ok(())
     }
 
     pub fn is_write_vectored(&self) -> bool {

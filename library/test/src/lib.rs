@@ -328,6 +328,7 @@ where
     // Use a deterministic hasher
     type TestMap = HashMap<TestId, RunningTest, BuildHasherDefault<DefaultHasher>>;
 
+    #[derive(Debug)]
     struct TimeoutEntry {
         id: TestId,
         desc: TestDesc,
