@@ -381,6 +381,16 @@ fn copy_third_party_objects(
         );
     }
 
+    if target.contains("twizzler") {
+        let libc_path =
+            copy_mlibc_libc(builder, target, &builder.sysroot_target_libdir(*compiler, target));
+        target_deps.push((libc_path, DependencyType::Target));
+        let libcxx_path =
+            copy_llvm_libcxx(builder, target, &builder.sysroot_target_libdir(*compiler, target));
+        target_deps.push((libcxx_path.0, DependencyType::Target));
+        target_deps.push((libcxx_path.1, DependencyType::Target));
+    }
+
     if target == "x86_64-fortanix-unknown-sgx"
         || builder.config.llvm_libunwind(target) == LlvmLibunwind::InTree
             && (target.contains("linux")
@@ -392,17 +402,6 @@ fn copy_third_party_objects(
         let libunwind_path =
             copy_llvm_libunwind(builder, target, &builder.sysroot_target_libdir(*compiler, target));
         target_deps.push((libunwind_path, DependencyType::Target));
-    }
-
-    if target.contains("twizzler") {
-        let libcxx_path =
-            copy_llvm_libcxx(builder, target, &builder.sysroot_target_libdir(*compiler, target));
-        target_deps.push((libcxx_path.0, DependencyType::Target));
-        target_deps.push((libcxx_path.1, DependencyType::Target));
-
-        let libc_path =
-            copy_mlibc_libc(builder, target, &builder.sysroot_target_libdir(*compiler, target));
-        target_deps.push((libc_path, DependencyType::Target));
     }
 
     target_deps
