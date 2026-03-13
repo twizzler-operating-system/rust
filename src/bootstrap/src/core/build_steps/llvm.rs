@@ -539,7 +539,12 @@ impl Step for Llvm {
             cfg.define("LLVM_VERSION_SUFFIX", suffix);
         }
 
-        configure_cmake(builder, target, &mut cfg, true, ldflags, CcFlags::default(), &[]);
+        let mut ccflags = CcFlags::default();
+        if target.contains("twizzler") {
+            ccflags.push_all(&format!("-L{}/install/lib/clang/21/lib/{}/", builder.src.join("../../").display(), target));
+        }
+
+        configure_cmake(builder, target, &mut cfg, true, ldflags, ccflags, &[]);
         configure_llvm(builder, target, &mut cfg);
 
         for (key, val) in &builder.config.llvm_build_config {
@@ -662,6 +667,7 @@ fn configure_cmake(
     }
     cfg.target(&target.triple).host(&builder.config.host_target.triple);
 
+    eprintln!("!!!!! ==> {} {} {}", builder.config.host_target.triple, target.triple, !builder.config.is_host_target(target));
     if !builder.config.is_host_target(target) {
         cfg.define("CMAKE_CROSSCOMPILING", "True");
 
@@ -807,7 +813,8 @@ fn configure_cmake(
         cflags.push(format!(" --sysroot {}", sysroot.display()));
         cflags.push(format!(" -isysroot {}", sysroot.display()));
         cflags.push(format!(" -target {}", target));
-        cflags.push(" -nostdlib");
+        cflags.push(" -D__Twizzler__");
+        cflags.push(" -ltwzstub");
     }
     cfg.define("CMAKE_C_FLAGS", cflags);
     let mut cxxflags = ccflags.cxxflags.clone();
@@ -843,8 +850,16 @@ fn configure_cmake(
         cxxflags.push(format!(" -isysroot{}", sysroot.display()));
         cxxflags.push(format!(" --sysroot {}", sysroot.display()));
         cxxflags.push(format!(" -target {}", target));
-        cxxflags.push(" -nostdlib");
+        //cxxflags.push(" -nostdlib");
         cxxflags.push(" -D__Twizzler__");
+        cxxflags.push(" -ltwzstub");
+        cfg.define("CMAKE_SYSROOT", sysroot.display().to_string());
+        cfg.define("CMAKE_FIND_ROOT_PATH_MODE_PROGRAM", "NEVER");
+        cfg.define("CMAKE_FIND_ROOT_PATH_MODE_LIBRARY", "ONLY");
+        cfg.define("CMAKE_FIND_ROOT_PATH_MODE_INCLUDE", "ONLY");
+        cfg.define("CMAKE_FIND_ROOT_PATH_MODE_PACKAGE", "ONLY");
+        cfg.define("CMAKE_C_COMPILER_TARGET", target.triple);
+        cfg.define("CMAKE_CXX_COMPILER_TARGET", target.triple);
     }
     cfg.define("CMAKE_CXX_FLAGS", cxxflags);
     if let Some(ar) = builder.ar(target)
@@ -1392,12 +1407,14 @@ impl Step for Sanitizers {
         let mut cfg = cmake::Config::new(&compiler_rt_dir);
         cfg.profile("Release");
         cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
+        cfg.define("CMAKE_CXX_COMPILER_TARGET", self.target.triple);
         if self.target.contains("twizzler") {
             cfg.define("COMPILER_RT_BUILD_BUILTINS", "ON");
             cfg.define("COMPILER_RT_BUILD_CRT", "ON");
             cfg.define("COMPILER_RT_BUILD_SANITIZERS", "OFF");
             cfg.define("COMPILER_RT_BAREMETAL_BUILD", "ON");
             cfg.cflag("-nostdlib");
+            cfg.cxxflag("-nostdlib");
             cfg.cflag("-fno-stack-protector");
             cfg.target(&self.target.triple).host(&builder.config.host_target.triple);
             cfg.asmflag("-target");
@@ -1429,13 +1446,17 @@ impl Step for Sanitizers {
         // and compilation fails. https://github.com/llvm/llvm-project/issues/88780
         let suppressed_compiler_flag_prefixes: &[&str] =
             if self.target.contains("apple-darwin") { &["-mmacosx-version-min="] } else { &[] };
+        let mut ccflags = CcFlags::default();
+        if self.target.contains("twizzler") {
+            ccflags.push_all("-nostdlib");
+        }
         configure_cmake(
             builder,
             self.target,
             &mut cfg,
             use_compiler_launcher,
             LdFlags::default(),
-            CcFlags::default(),
+            ccflags,
             suppressed_compiler_flag_prefixes,
         );
         configure_llvm(builder, self.target, &mut cfg);
@@ -1608,6 +1629,7 @@ impl Step for CrtBeginEnd {
 
         if self.target.contains("twizzler") {
             cfg.flag("-nostdlibinc");
+            cfg.flag("-nostdlib");
         }
 
         let objs = cfg.compile_intermediates();
@@ -1849,18 +1871,24 @@ impl Step for Libcxx {
         let mut cfg = cmake::Config::new(&root);
         cfg.profile("Release");
         cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
+        cfg.define("CMAKE_CXX_COMPILER_TARGET", self.target.triple);
 
         let ldflags = LdFlags::default();
-        configure_cmake(builder, self.target, &mut cfg, true, ldflags, CcFlags::default(), &[]);
+        let mut ccflags = CcFlags::default();
+        ccflags.push_all("-nostdlib");
+
+        configure_cmake(builder, self.target, &mut cfg, true, ldflags, ccflags, &[]);
         configure_llvm(builder, self.target, &mut cfg);
 
         //cfg.define("LLVM_CMAKE_DIR", root.join("cmake")).define("LLVM_INCLUDE_TESTS", "OFF");
         cfg.define("LIBCXX_HAS_PTHREAD_API", "ON");
         cfg.define("LIBCXX_CXX_ABI", "libcxxabi");
-        cfg.define("LIBCXX_ENABLE_UNICODE", "OFF");
+        cfg.define("LIBCXX_ENABLE_UNICODE", "ON");
         cfg.define("LIBCXX_ENABLE_SHARED", "OFF");
-        cfg.define("LIBCXX_ENABLE_WIDE_CHARACTERS", "OFF");
+        cfg.define("LIBCXX_ENABLE_WIDE_CHARACTERS", "ON");
+        cfg.define("_LIBCPP_NO_VCRUNTIME", "ON");
         cfg.define("LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY", "OFF");
+
         t!(fs::create_dir_all(&out_dir));
         cfg.out_dir(&out_dir);
         eprintln!("GEN");
@@ -1923,14 +1951,16 @@ impl Step for Libcxxabi {
         let mut cfg = cmake::Config::new(&root);
         cfg.profile("Release");
         cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
+        cfg.define("CMAKE_CXX_COMPILER_TARGET", self.target.triple);
 
         let ldflags = LdFlags::default();
-        configure_cmake(builder, self.target, &mut cfg, true, ldflags, CcFlags::default(), &[]);
-        configure_llvm(builder, self.target, &mut cfg);
-
+        let mut ccflags = CcFlags::default();
+        ccflags.push_all("-nostdlib");
         //cfg.define("LLVM_CMAKE_DIR", root.join("cmake")).define("LLVM_INCLUDE_TESTS", "OFF");
         cfg.define("LIBCXXABI_USE_LLVM_UNWINDER", "OFF");
         cfg.define("LIBCXXABI_ENABLE_THREADS", "ON");
+        configure_cmake(builder, self.target, &mut cfg, true, ldflags, ccflags, &[]);
+        configure_llvm(builder, self.target, &mut cfg);
 
         t!(fs::create_dir_all(&out_dir));
         cfg.out_dir(&out_dir);
