@@ -814,7 +814,7 @@ fn configure_cmake(
         cflags.push(format!(" -isysroot {}", sysroot.display()));
         cflags.push(format!(" -target {}", target));
         cflags.push(" -D__Twizzler__");
-        cflags.push(" -ltwzstub");
+        ldflags.push_all(" -ltwzstub");
     }
     cfg.define("CMAKE_C_FLAGS", cflags);
     let mut cxxflags = ccflags.cxxflags.clone();
@@ -852,7 +852,7 @@ fn configure_cmake(
         cxxflags.push(format!(" -target {}", target));
         //cxxflags.push(" -nostdlib");
         cxxflags.push(" -D__Twizzler__");
-        cxxflags.push(" -ltwzstub");
+        ldflags.push_all(" -ltwzstub");
         cfg.define("CMAKE_SYSROOT", sysroot.display().to_string());
         cfg.define("CMAKE_FIND_ROOT_PATH_MODE_PROGRAM", "NEVER");
         cfg.define("CMAKE_FIND_ROOT_PATH_MODE_LIBRARY", "ONLY");
