@@ -814,7 +814,7 @@ fn configure_cmake(
         cflags.push(format!(" -isysroot {}", sysroot.display()));
         cflags.push(format!(" -target {}", target));
         cflags.push(" -D__Twizzler__");
-        ldflags.push_all(" -ltwzstub");
+        //ldflags.push_all(" -ltwzstub");
     }
     cfg.define("CMAKE_C_FLAGS", cflags);
     let mut cxxflags = ccflags.cxxflags.clone();
@@ -852,7 +852,7 @@ fn configure_cmake(
         cxxflags.push(format!(" -target {}", target));
         //cxxflags.push(" -nostdlib");
         cxxflags.push(" -D__Twizzler__");
-        ldflags.push_all(" -ltwzstub");
+        //ldflags.push_all(" -ltwzstub");
         cfg.define("CMAKE_SYSROOT", sysroot.display().to_string());
         cfg.define("CMAKE_FIND_ROOT_PATH_MODE_PROGRAM", "NEVER");
         cfg.define("CMAKE_FIND_ROOT_PATH_MODE_LIBRARY", "ONLY");
@@ -1413,6 +1413,7 @@ impl Step for Sanitizers {
             cfg.define("COMPILER_RT_BUILD_CRT", "ON");
             cfg.define("COMPILER_RT_BUILD_SANITIZERS", "OFF");
             cfg.define("COMPILER_RT_BAREMETAL_BUILD", "ON");
+            cfg.define("BUILD_SHARED_LIBS", "ON");
             cfg.cflag("-nostdlib");
             cfg.cxxflag("-nostdlib");
             cfg.cflag("-fno-stack-protector");
@@ -2014,14 +2015,21 @@ impl Step for Libc {
         let build_dir_name = format!("build-{}", self.target.triple);
         let build_dir = root.join(&build_dir_name);
 
-        if up_to_date(&root, &build_dir.join("libc.a")) {
+        if up_to_date(&root, &build_dir.join("libc.a")) && up_to_date(&root, &build_dir.join("libc.so")) {
             return build_dir;
         }
 
-        let _guard = builder.msg_unstaged(Kind::Build, "libc.a", self.target);
+        let _rt_path = builder.ensure(Sanitizers { target: self.target });
+        let mut libflags = Vec::new();
+        for rt_path in _rt_path {
+            libflags.push(format!("{}", rt_path.path.display()));
+        }
+
+        let _guard = builder.msg_unstaged(Kind::Build, "libc.a/.so", self.target);
         t!(fs::create_dir_all(&build_dir));
 
         let mlibc_sysroot = builder.src.join(format!("../../install/sysroots/{}", self.target.triple));
+        let linker_script = builder.src.join(format!("compiler/rustc_target/src/spec/targets/{}_linker_script.ld", self.target.triple.to_string().as_str().replace("-", "_")));
         let cross_file = format!("{}/meson-cross-twizzler.txt", mlibc_sysroot.display());
 
         let mut cf = t!(File::create(&cross_file));
@@ -2041,15 +2049,24 @@ impl Step for Libc {
         t!(writeln!(&mut cf, "[built-in options]"));
         let lld_path = builder.src.join("build/host/lld/bin");
         for tool in ["c_args", "c_link_args", "cpp_args", "cpp_link_args"] {
-            t!(writeln!(
+            t!(write!(
                 &mut cf,
-                "{} = ['-B{}', '-isysroot', '{}', '--sysroot', '{}', '-target', '{}']",
+                "{} = ['-B{}', '-isysroot', '{}', '--sysroot', '{}', '-target', '{}', ",
                 tool,
                 lld_path.display(),
                 mlibc_sysroot.display(),
                 mlibc_sysroot.display(),
                 self.target.triple,
             ));
+            if tool == "c_link_args" || tool == "cpp_link_args" {
+                for libflag in &libflags {
+                    t!(write!(
+                        &mut cf,
+                        "'{}', ", libflag));
+                }
+                t!(write!(&mut cf, "'-Wl,-T{}', '-z', 'norelro'", linker_script.display()));
+            }
+            t!(writeln!(&mut cf, "]"));
         }
 
         t!(writeln!(&mut cf, "[properties]"));
@@ -2067,7 +2084,7 @@ impl Step for Libc {
         let status = t!(Command::new("meson")
             .arg("setup")
             .arg(format!("-Dprefix={}", mlibc_sysroot.display()))
-            .arg("-Ddefault_library=static")
+            .arg("-Ddefault_library=both")
             .arg("-Dlibgcc_dependency=false")
             .arg("-Duse_freestnd_hdrs=enabled")
             .arg(format!("--cross-file={}", cross_file))

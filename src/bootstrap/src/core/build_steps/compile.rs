@@ -354,13 +354,21 @@ fn copy_mlibc_libc(
     builder: &Builder<'_>,
     target: TargetSelection,
     libdir: &Path,
-) -> PathBuf {
+) -> Vec<PathBuf> {
+    let mut targets = Vec::new();
+
     let libc_path = builder.ensure(llvm::Libc { target });
     let libc_source = libc_path.join("libc.a");
     let libc_target = libdir.join("libc.a");
-
     builder.copy_link(&libc_source, &libc_target, FileType::NativeLibrary);
-    libc_target
+    targets.push(libc_target);
+
+    let libc_source = libc_path.join("libc.so");
+    let libc_target = libdir.join("libc.so");
+    builder.copy_link(&libc_source, &libc_target, FileType::NativeLibrary);
+    targets.push(libc_target);
+
+    targets
 }
 
 /// Copies third party objects needed by various targets.
@@ -372,9 +380,11 @@ fn copy_third_party_objects(
     let mut target_deps = vec![];
 
     if target.contains("twizzler") {
-        let libc_path =
+        let libc_paths =
             copy_mlibc_libc(builder, target, &builder.sysroot_target_libdir(*compiler, target));
-        target_deps.push((libc_path, DependencyType::Target));
+        for libc_path in libc_paths {
+            target_deps.push((libc_path, DependencyType::Target));
+        }
     }
 
     if builder.config.needs_sanitizer_runtime_built(target) && compiler.stage != 0 {
