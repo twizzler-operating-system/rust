@@ -61,7 +61,8 @@ pub unsafe extern "C" fn std_entry_from_runtime(
     }
 
     let main_fn: Option<extern "C" fn(isize, *const *const c_char) -> i32> =
-        if main.is_null() { None } else { Some(core::mem::transmute(main)) };
+        if main.is_null() { None } else { Some(core::mem::transmute(main)) }
+            .or(if aux.entry == 0 { None } else { Some(core::mem::transmute(aux.entry)) });
 
     crate::sys::env::init_environment(aux.env as *const *const _);
     // If pre_main_hook returns a code, then don't call main and exit with that code instead.

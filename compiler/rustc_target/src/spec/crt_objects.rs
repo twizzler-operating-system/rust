@@ -84,6 +84,24 @@ pub(super) fn post_musl_self_contained() -> CrtObjects {
     ])
 }
 
+pub(super) fn pre_twizzler_self_contained() -> CrtObjects {
+    new(&[
+        (LinkOutputKind::DynamicNoPicExe, &["Scrt1.o", "crti.o", "crtbegin.o"]),
+        (LinkOutputKind::DynamicPicExe, &["Scrt1.o", "crti.o", "crtbeginS.o"]),
+        (LinkOutputKind::StaticNoPicExe, &["Scrt1.o", "crti.o", "crtbegin.o"]),
+        (LinkOutputKind::StaticPicExe, &["Scrt1.o", "crti.o", "crtbeginS.o"]),
+    ])
+}
+
+pub(super) fn post_twizzler_self_contained() -> CrtObjects {
+    new(&[
+        (LinkOutputKind::DynamicNoPicExe, &["crtend.o", "crtn.o"]),
+        (LinkOutputKind::DynamicPicExe, &["crtendS.o", "crtn.o"]),
+        (LinkOutputKind::StaticNoPicExe, &["crtend.o", "crtn.o"]),
+        (LinkOutputKind::StaticPicExe, &["crtendS.o", "crtn.o"]),
+    ])
+}
+
 pub(super) fn pre_mingw_self_contained() -> CrtObjects {
     new(&[
         (LinkOutputKind::DynamicNoPicExe, &["crt2.o"]),

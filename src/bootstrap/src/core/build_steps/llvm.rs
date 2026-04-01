@@ -1378,6 +1378,10 @@ impl Step for Sanitizers {
         let LlvmResult { host_llvm_config, llvm_cmake_dir, .. } =
             builder.ensure(Llvm { target: builder.config.host_target });
 
+        if self.target.contains("twizzler") {
+            let _libc_headers = builder.ensure(LibcHdrs { target: self.target });
+        }
+
         static STAMP_HASH_MEMO: OnceLock<String> = OnceLock::new();
         let smart_stamp_hash = STAMP_HASH_MEMO.get_or_init(|| {
             generate_smart_stamp_hash(
@@ -1954,7 +1958,10 @@ impl Step for Libcxxabi {
         cfg.define("CMAKE_C_COMPILER_TARGET", self.target.triple);
         cfg.define("CMAKE_CXX_COMPILER_TARGET", self.target.triple);
 
-        let ldflags = LdFlags::default();
+        let linker_script = builder.src.join(format!("compiler/rustc_target/src/spec/targets/{}_linker_script.ld", self.target.triple.to_string().as_str().replace("-", "_")));
+        let mut ldflags = LdFlags::default();
+        ldflags.push_all("-Wl,-T");
+        ldflags.push_all(&format!("-Wl,{}", linker_script.display()));
         let mut ccflags = CcFlags::default();
         ccflags.push_all("-nostdlib");
         //cfg.define("LLVM_CMAKE_DIR", root.join("cmake")).define("LLVM_INCLUDE_TESTS", "OFF");
@@ -1985,6 +1992,134 @@ impl Step for Libcxxabi {
             .unwrap();
 
         out_dir
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LibcHdrs {
+    pub target: TargetSelection,
+}
+
+impl Step for LibcHdrs {
+    type Output = PathBuf;
+
+    fn should_run(run: ShouldRun<'_>) -> ShouldRun<'_> {
+        run.path("../mlibc")
+    }
+
+    fn make_run(run: RunConfig<'_>) {
+        run.builder.ensure(Libc { target: run.target });
+    }
+
+    /// Install libc headers
+    fn run(self, builder: &Builder<'_>) -> Self::Output {
+        use std::io::Write;
+        if builder.config.dry_run() {
+            return PathBuf::new();
+        }
+
+        let root = builder.src.join("../mlibc");
+        let build_dir_name = format!("build-{}", self.target.triple);
+        let build_dir = root.join(&build_dir_name);
+
+        let mlibc_sysroot = builder.src.join(format!("../../install/sysroots/{}", self.target.triple));
+        let linker_script = builder.src.join(format!("compiler/rustc_target/src/spec/targets/{}_linker_script.ld", self.target.triple.to_string().as_str().replace("-", "_")));
+        let cross_file = format!("{}/meson-cross-twizzler.txt", mlibc_sysroot.display());
+        let mut header_file = mlibc_sysroot.clone();
+        header_file.push("include");
+        header_file.push("assert.h");
+
+        let _guard = builder.msg_unstaged(Kind::Build, "libc headers", self.target);
+
+        if up_to_date(&root, &header_file) {
+            return build_dir;
+        }
+
+        t!(fs::create_dir_all(&build_dir));
+        t!(fs::create_dir_all(&mlibc_sysroot));
+
+        let mut cf = t!(File::create(&cross_file));
+
+        t!(writeln!(&mut cf, "[binaries]"));
+        for tool in [
+            ("c", "clang"),
+            ("cpp", "clang++"),
+            ("ar", "llvm-ar"),
+            ("strip", "llvm-strip"),
+        ] {
+            let llvm_bin_path = builder.src.join("build/host/llvm/bin");
+            let path = llvm_bin_path.join(tool.1);
+            t!(writeln!(&mut cf, "{} = '{}'", tool.0, path.display()));
+        }
+
+        t!(writeln!(&mut cf, "[built-in options]"));
+        let lld_path = builder.src.join("build/host/lld/bin");
+        for tool in ["c_args", "c_link_args", "cpp_args", "cpp_link_args"] {
+            t!(write!(
+                &mut cf,
+                "{} = ['-B{}', '-isysroot', '{}', '--sysroot', '{}', '-target', '{}', ",
+                tool,
+                lld_path.display(),
+                mlibc_sysroot.display(),
+                mlibc_sysroot.display(),
+                self.target.triple,
+            ));
+            if tool == "c_link_args" || tool == "cpp_link_args" {
+                t!(write!(&mut cf, "'-Wl,-T{}', '-z', 'norelro'", linker_script.display()));
+            }
+            t!(writeln!(&mut cf, "]"));
+        }
+
+        t!(writeln!(&mut cf, "[properties]"));
+        t!(writeln!(&mut cf, "sys_root = '{}'", mlibc_sysroot.display()));
+
+        t!(writeln!(&mut cf, "[host_machine]"));
+        t!(writeln!(&mut cf, "system = 'twizzler'"));
+        t!(writeln!(&mut cf, "cpu_family = '{}'", self.target.triple.split("-").next().unwrap()));
+        t!(writeln!(&mut cf, "cpu = '{}'", self.target.triple.split("-").next().unwrap()));
+        t!(writeln!(&mut cf, "endian = 'little'"));
+        drop(cf);
+
+        let _ = std::fs::remove_dir_all(&build_dir);
+
+        let status = t!(Command::new("meson")
+            .arg("setup")
+            .arg(format!("-Dprefix={}", mlibc_sysroot.display()))
+            .arg("-Dheaders_only=true")
+            .arg("-Ddefault_library=both")
+            .arg("-Dlibgcc_dependency=false")
+            .arg("-Duse_freestnd_hdrs=enabled")
+            .arg(format!("--cross-file={}", cross_file))
+            .arg("--buildtype=debugoptimized")
+            .arg(&build_dir_name)
+            .current_dir(&root)
+            .status());
+        if !status.success() {
+            t!(Err(std::io::Error::other("failed to setup meson for libc headers")));
+        }
+
+        let status = t!(Command::new("meson")
+            .arg("compile")
+            .arg("-C")
+            .arg(&build_dir_name)
+            .current_dir(&root)
+            .status());
+        if !status.success() {
+            t!(Err(std::io::Error::other("failed to build libc headers")));
+        }
+
+        let status = t!(Command::new("meson")
+              .arg("install")
+              .arg("-q")
+              .arg("-C")
+              .arg(&build_dir_name)
+              .current_dir(&root)
+              .status());
+          if !status.success() {
+              t!(Err(std::io::Error::other("failed to install libc headers")));
+          }
+
+        build_dir
     }
 }
 
