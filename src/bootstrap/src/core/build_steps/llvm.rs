@@ -12,9 +12,7 @@ use std::env::consts::EXE_EXTENSION;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-use std::process::Command;
 use std::{env, fs};
-use std::fs::File;
 
 use build_helper::exit;
 use build_helper::git::PathFreshness;
@@ -667,7 +665,6 @@ fn configure_cmake(
     }
     cfg.target(&target.triple).host(&builder.config.host_target.triple);
 
-    eprintln!("!!!!! ==> {} {} {}", builder.config.host_target.triple, target.triple, !builder.config.is_host_target(target));
     if !builder.config.is_host_target(target) {
         cfg.define("CMAKE_CROSSCOMPILING", "True");
 
@@ -1378,10 +1375,6 @@ impl Step for Sanitizers {
         let LlvmResult { host_llvm_config, llvm_cmake_dir, .. } =
             builder.ensure(Llvm { target: builder.config.host_target });
 
-        if self.target.contains("twizzler") {
-            let _libc_headers = builder.ensure(LibcHdrs { target: self.target });
-        }
-
         static STAMP_HASH_MEMO: OnceLock<String> = OnceLock::new();
         let smart_stamp_hash = STAMP_HASH_MEMO.get_or_init(|| {
             generate_smart_stamp_hash(
@@ -1834,6 +1827,7 @@ impl Step for Libunwind {
     }
 }
 
+/*
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Libcxx {
     pub target: TargetSelection,
@@ -2255,3 +2249,5 @@ impl Step for Libc {
         build_dir
     }
 }
+
+*/

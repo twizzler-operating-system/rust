@@ -334,43 +334,6 @@ fn copy_llvm_libunwind(builder: &Builder<'_>, target: TargetSelection, libdir: &
     libunwind_target
 }
 
-fn copy_llvm_libcxx(
-    builder: &Builder<'_>,
-    target: TargetSelection,
-    libdir: &Path,
-) -> (PathBuf, PathBuf) {
-    let libcxx_path = builder.ensure(llvm::Libcxx { target });
-    let libcxx_source = libcxx_path.0.join("lib/libc++.a");
-    let libcxx_target = libdir.join("libc++.a");
-
-    let libcxxabi_source = libcxx_path.1.join("lib/libc++abi.a");
-    let libcxxabi_target = libdir.join("libc++abi.a");
-    builder.copy_link(&libcxx_source, &libcxx_target, FileType::NativeLibrary);
-    builder.copy_link(&libcxxabi_source, &libcxxabi_target, FileType::NativeLibrary);
-    (libcxx_target, libcxxabi_target)
-}
-
-fn copy_mlibc_libc(
-    builder: &Builder<'_>,
-    target: TargetSelection,
-    libdir: &Path,
-) -> Vec<PathBuf> {
-    let mut targets = Vec::new();
-
-    let libc_path = builder.ensure(llvm::Libc { target });
-    let libc_source = libc_path.join("libc.a");
-    let libc_target = libdir.join("libc.a");
-    builder.copy_link(&libc_source, &libc_target, FileType::NativeLibrary);
-    targets.push(libc_target);
-
-    let libc_source = libc_path.join("libc.so");
-    let libc_target = libdir.join("libc.so");
-    builder.copy_link(&libc_source, &libc_target, FileType::NativeLibrary);
-    targets.push(libc_target);
-
-    targets
-}
-
 /// Copies third party objects needed by various targets.
 fn copy_third_party_objects(
     builder: &Builder<'_>,
@@ -378,14 +341,6 @@ fn copy_third_party_objects(
     target: TargetSelection,
 ) -> Vec<(PathBuf, DependencyType)> {
     let mut target_deps = vec![];
-
-    if target.contains("twizzler") {
-        let libc_paths =
-            copy_mlibc_libc(builder, target, &builder.sysroot_target_libdir(*compiler, target));
-        for libc_path in libc_paths {
-            target_deps.push((libc_path, DependencyType::Target));
-        }
-    }
 
     if builder.config.needs_sanitizer_runtime_built(target) && compiler.stage != 0 {
         // The sanitizers are only copied in stage1 or above,
@@ -397,19 +352,11 @@ fn copy_third_party_objects(
         );
     }
 
-    if target.contains("twizzler") {
-        let libcxx_path =
-            copy_llvm_libcxx(builder, target, &builder.sysroot_target_libdir(*compiler, target));
-        target_deps.push((libcxx_path.0, DependencyType::Target));
-        target_deps.push((libcxx_path.1, DependencyType::Target));
-    }
-
     if target == "x86_64-fortanix-unknown-sgx"
         || builder.config.llvm_libunwind(target) == LlvmLibunwind::InTree
             && (target.contains("linux")
                 || target.contains("fuchsia")
                 || target.contains("aix")
-                || target.contains("twizzler")
                 || target.contains("hexagon"))
     {
         let libunwind_path =
@@ -512,14 +459,6 @@ fn copy_self_contained_objects(
             let dst = libdir_self_contained.join(obj);
             builder.copy_link(&src, &dst, FileType::NativeLibrary);
             target_deps.push((dst, DependencyType::TargetSelfContained));
-        }
-    } else if target.contains("twizzler") {
-        let crt_path = builder.ensure(llvm::CrtBeginEnd { target });
-        for &obj in &["crtbegin.o", "crtbeginS.o", "crtend.o", "crtendS.o"] {
-            let src = crt_path.join(obj);
-            let target = libdir_self_contained.join(obj);
-            builder.copy_link(&src, &target, FileType::NativeLibrary);
-            target_deps.push((target, DependencyType::TargetSelfContained));
         }
     }
 
