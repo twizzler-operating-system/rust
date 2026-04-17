@@ -52,7 +52,7 @@ libc = "0.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # tidy-alphabetical-start
-memmap2 = "0.2.1"
+memmap2 = { path = "../../../../../src/ports/memmap2-rs" }
 # tidy-alphabetical-end
 
 [target.'cfg(not(target_has_atomic = "64"))'.dependencies]

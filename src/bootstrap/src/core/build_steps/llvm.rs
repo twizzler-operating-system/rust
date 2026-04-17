@@ -424,6 +424,12 @@ impl Step for Llvm {
             ldflags.shared.push(" -latomic");
         }
 
+        if target.contains("twizzler") {
+            ldflags.push_all(" -lc++");
+            ldflags.push_all(" -lc++abi");
+            ldflags.push_all(" -lunwind");
+        }
+
         if target.starts_with("mips") && target.contains("netbsd") {
             // LLVM wants 64-bit atomics, while mipsel is 32-bit only, so needs -latomic
             ldflags.exe.push(" -latomic");

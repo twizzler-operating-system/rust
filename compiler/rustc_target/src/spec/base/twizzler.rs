@@ -6,12 +6,9 @@ use crate::spec::{
 pub(crate) fn opts() -> TargetOptions {
     let mut pre_link_args = LinkArgs::new();
     let mut post_link_args = LinkArgs::new();
-    pre_link_args
-        .insert(LinkerFlavor::Gnu(Cc::Yes, Lld::Yes), vec!["--pack-dyn-relocs=relr".into()]);
-    pre_link_args
-        .insert(LinkerFlavor::Gnu(Cc::Yes, Lld::No), vec!["--pack-dyn-relocs=relr".into()]);
-    pre_link_args
-        .insert(LinkerFlavor::Gnu(Cc::No, Lld::Yes), vec!["--pack-dyn-relocs=relr".into()]);
+    pre_link_args.insert(LinkerFlavor::Gnu(Cc::Yes, Lld::Yes), vec![]);
+    pre_link_args.insert(LinkerFlavor::Gnu(Cc::Yes, Lld::No), vec![]);
+    pre_link_args.insert(LinkerFlavor::Gnu(Cc::No, Lld::Yes), vec![]);
     post_link_args.insert(LinkerFlavor::Gnu(Cc::No, Lld::Yes), vec![]);
 
     TargetOptions {

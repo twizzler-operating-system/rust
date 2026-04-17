@@ -642,10 +642,10 @@ impl Step for Rustc {
             generate_target_spec_json_schema(builder, image);
 
             // HTML copyright files
-            let file_list = builder.ensure(super::run::GenerateCopyright);
-            for file in file_list {
-                builder.install(&file, &image.join("share/doc/rust"), FileType::Regular);
-            }
+            //let file_list = builder.ensure(super::run::GenerateCopyright);
+            //for file in file_list {
+            //    builder.install(&file, &image.join("share/doc/rust"), FileType::Regular);
+            //}
 
             // README
             builder.install(
