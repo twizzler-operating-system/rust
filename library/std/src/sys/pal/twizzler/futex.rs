@@ -23,7 +23,11 @@ pub fn futex_wait(futex: &AtomicU32, expected: u32, timeout: Option<Duration>) -
         return true;
     }
 
-    twizzler_rt_abi::thread::twz_rt_futex_wait(futex, expected, timeout)
+    match twizzler_rt_abi::thread::twz_rt_futex_wait(futex, expected, timeout) {
+        Ok(()) => true,
+        Err(twizzler_rt_abi::error::TwzError::TIMED_OUT) => false,
+        _ => true,
+    }
 }
 
 /// Wake up one thread that's blocked on futex_wait on this futex.
@@ -34,11 +38,12 @@ pub fn futex_wait(futex: &AtomicU32, expected: u32, timeout: Option<Duration>) -
 /// On some platforms, this always returns false.
 #[inline]
 pub fn futex_wake(futex: &AtomicU32) -> bool {
-    twizzler_rt_abi::thread::twz_rt_futex_wake(futex, Some(1))
+    let _ = twizzler_rt_abi::thread::twz_rt_futex_wake(futex, Some(1));
+    return false;
 }
 
 /// Wake up all threads that are waiting on futex_wait on this futex.
 #[inline]
 pub fn futex_wake_all(futex: &AtomicU32) {
-    twizzler_rt_abi::thread::twz_rt_futex_wake(futex, None);
+    let _ = twizzler_rt_abi::thread::twz_rt_futex_wake(futex, None);
 }
