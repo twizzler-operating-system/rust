@@ -85,6 +85,17 @@ pub unsafe extern "C" fn std_entry_from_runtime(
     twizzler_rt_abi::core::BasicReturn { code }
 }
 
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn std_handle_thread_exit(
+    _id: twizzler_rt_abi::thread::ThreadId,
+    my_tp: *mut u8,
+    their_tp: *mut u8,
+) {
+    unsafe {
+        crate::sys::thread_local::destructors::run_for_tp(my_tp, their_tp);
+    }
+}
+
 #[doc(hidden)]
 #[allow(dead_code)]
 pub trait IsNegative {

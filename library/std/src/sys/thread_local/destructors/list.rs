@@ -39,3 +39,29 @@ pub unsafe fn run() {
         }
     }
 }
+
+/// Run destructors for a foreign thread's TLS block.
+/// `tp` is the thread pointer (FS base on x86_64) of the exiting thread.
+#[cfg(target_os = "twizzler")]
+pub unsafe fn run_for_tp(my_tp: *mut u8, tp: *mut u8) {
+    unsafe {
+        let dtors_addr = crate::ptr::addr_of!(DTORS) as *mut u8;
+        let offset = dtors_addr.offset_from(my_tp);
+        // Apply that same offset to the foreign thread's TP
+        let foreign_dtors = tp.offset(offset)
+            as *mut RefCell<Vec<(*mut u8, unsafe extern "C" fn(*mut u8)), System>>;
+        loop {
+            let mut dtors = (*foreign_dtors).borrow_mut();
+            match dtors.pop() {
+                Some((t, dtor)) => {
+                    drop(dtors);
+                    dtor(t);
+                }
+                None => {
+                    *dtors = Vec::new_in(System);
+                    break;
+                }
+            }
+        }
+    }
+}

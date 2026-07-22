@@ -75,6 +75,8 @@ pub(crate) mod destructors {
             mod list;
             pub(super) use list::register;
             pub(crate) use list::run;
+            #[cfg(target_os = "twizzler")]
+            pub(crate) use list::run_for_tp;
         }
     }
 }
