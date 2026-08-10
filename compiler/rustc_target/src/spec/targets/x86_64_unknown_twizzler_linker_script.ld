@@ -52,6 +52,11 @@ SECTIONS
       *(.rela.iplt)
       PROVIDE_HIDDEN (__rela_iplt_end = .);
     }
+  /* RELR-packed relative relocations (--pack-dyn-relocs=relr). Placed explicitly: this script
+     defines a complete SECTIONS block, so .relr.dyn would otherwise be orphan-placed. It must stay
+     in the text segment, which is direct-mapped from the ELF object and requires p_offset ==
+     p_vaddr - NULLPAGE_SIZE (see dynlink::engines::twizzler::load_segments). */
+  .relr.dyn       : { *(.relr.dyn) }
   .init           :
   {
     KEEP (*(SORT_NONE(.init)))
