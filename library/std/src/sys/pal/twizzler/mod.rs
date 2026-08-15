@@ -40,12 +40,17 @@ pub unsafe fn init(argc: isize, argv: *const *const u8, _sigpipe: u8) {
 pub unsafe fn cleanup() {}
 
 #[inline]
-pub(crate) fn is_interrupted(_errno: i32) -> bool {
-    false
+pub(crate) fn is_interrupted(errno: i32) -> bool {
+    matches!(
+        twizzler_rt_abi::error::RawTwzError::from_os_code(errno).error(),
+        twizzler_rt_abi::error::TwzError::Generic(
+            twizzler_rt_abi::error::GenericError::Interrupted
+        )
+    )
 }
 
-pub fn decode_error_kind(_errno: i32) -> crate::io::ErrorKind {
-    crate::io::ErrorKind::Other
+pub fn decode_error_kind(errno: i32) -> crate::io::ErrorKind {
+    twizzler_rt_abi::error::RawTwzError::from_os_code(errno).error().into()
 }
 
 #[unsafe(no_mangle)]
@@ -154,9 +159,17 @@ use twizzler_rt_abi::error::*;
 
 #[stable(feature = "rust1", since = "1.0.0")]
 impl From<TwzError> for crate::io::Error {
+    /// Carry the error as a raw OS code rather than as a payload.
+    ///
+    /// `Error::new(kind, value)` allocates *twice* -- once to box the `TwzError` as `dyn Error`,
+    /// once for the `Custom` that holds it -- and this conversion sits behind every `?` in `fs`,
+    /// `fd` and `net`. That lands on error paths which are expected and repeated rather than
+    /// exceptional: `WouldBlock` from a non-blocking socket, `NotFound` while a loader probes
+    /// directories for a name. `from_raw_os_error` uses the bit-packed `Os` repr instead and
+    /// allocates nothing; `decode_error_kind` above is the inverse, so the kind and the original
+    /// error both survive the round trip, and `raw_os_error()` hands the code back.
     fn from(value: TwzError) -> Self {
-        let kind: crate::io::ErrorKind = value.into();
-        Self::new(kind, value)
+        Self::from_raw_os_error(RawTwzError::from(value).as_os_code())
     }
 }
 
@@ -164,7 +177,9 @@ impl From<TwzError> for crate::io::Error {
 impl From<TwzError> for crate::io::ErrorKind {
     fn from(value: TwzError) -> Self {
         match value {
-            TwzError::Uncategorized(code) => decode_error_kind(code as i32),
+            // Not `decode_error_kind`: that now decodes into this very match, and an
+            // uncategorized error decodes back to `Uncategorized`.
+            TwzError::Uncategorized(_) => crate::io::ErrorKind::Other,
             TwzError::Generic(generic_error) => generic_error.into(),
             TwzError::Argument(argument_error) => argument_error.into(),
             TwzError::Resource(resource_error) => resource_error.into(),

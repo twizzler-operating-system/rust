@@ -10,10 +10,15 @@ cfg_select! {
         target_os = "fuchsia",
         all(target_family = "wasm", target_feature = "atomics"),
         target_os = "hermit",
-        target_os = "twizzler",
     ) => {
         mod futex;
         pub use futex::Condvar;
+    }
+    target_os = "twizzler" => {
+        // The futex condvar, plus a waiter count: a wake here is a syscall, and `notify_*` issues
+        // one on every signal whether or not anyone is parked.
+        mod twizzler;
+        pub use twizzler::Condvar;
     }
     any(
         target_family = "unix",

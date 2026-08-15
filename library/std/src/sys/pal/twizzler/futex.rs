@@ -35,11 +35,12 @@ pub fn futex_wait(futex: &AtomicU32, expected: u32, timeout: Option<Duration>) -
 /// Returns true if this actually woke up such a thread,
 /// or false if no thread was waiting on this futex.
 ///
-/// On some platforms, this always returns false.
+/// Answering this honestly matters: `RwLock::wake_writer_or_readers` treats `false` as "I could not
+/// confirm a writer was notified" and goes on to wake *every* waiting reader as well. Returning a
+/// constant `false`, as this used to, made that the behaviour of every contended write-unlock.
 #[inline]
 pub fn futex_wake(futex: &AtomicU32) -> bool {
-    let _ = twizzler_rt_abi::thread::twz_rt_futex_wake(futex, Some(1));
-    return false;
+    twizzler_rt_abi::thread::twz_rt_futex_wake_count(futex, Some(1)).is_ok_and(|woken| woken > 0)
 }
 
 /// Wake up all threads that are waiting on futex_wait on this futex.

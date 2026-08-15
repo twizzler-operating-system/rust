@@ -8,8 +8,15 @@ pub fn errno() -> i32 {
     0
 }
 
-pub fn error_string(_errno: i32) -> String {
-    "operation successful".to_string()
+/// Render an OS code produced by [`RawTwzError::as_os_code`] back into a message.
+///
+/// `io::Error`'s `Os` repr stores only the code, so this is what its `Display` prints; without it
+/// every error carried through `from_raw_os_error` shows up as a bare number.
+pub fn error_string(errno: i32) -> String {
+    if errno == 0 {
+        return "operation successful".to_string();
+    }
+    twizzler_rt_abi::error::RawTwzError::from_os_code(errno).error().to_string()
 }
 
 fn read_name(root: twizzler_rt_abi::fd::NameRoot) -> io::Result<PathBuf> {
