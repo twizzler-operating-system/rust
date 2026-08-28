@@ -364,6 +364,28 @@ fn copy_third_party_objects(
         target_deps.push((libunwind_path, DependencyType::Target));
     }
 
+    // The twizzler spec lists bare crt object names in pre/post_link_objects; rustc resolves
+    // them via the target libdir, so ship them there from the sysroot.
+    if target.contains("twizzler") {
+        let srcdir = {
+            let d = builder.src.join(format!("../../install/sysroots/{}/lib", target.triple));
+            d.canonicalize().unwrap_or(d)
+        };
+        let libdir = builder.sysroot_target_libdir(*compiler, target);
+        for &obj in &[
+            "Scrt1.o",
+            "crt1.o",
+            "crti.o",
+            "crtn.o",
+            "crtbegin.o",
+            "crtbeginS.o",
+            "crtend.o",
+            "crtendS.o",
+        ] {
+            copy_and_stamp(builder, &libdir, &srcdir, obj, &mut target_deps, DependencyType::Target);
+        }
+    }
+
     target_deps
 }
 

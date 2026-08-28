@@ -671,7 +671,14 @@ pub fn read_output(
         match fd.read_to_end(dst) {
             Ok(_) => Ok(true),
             Err(e) => {
-                if e.raw_os_error() == Some(libc::EWOULDBLOCK)
+                // The kind check is what makes this work on targets whose OS error codes are not
+                // libc errnos: Twizzler packs (category << 16) | code, so a would-block arrives as
+                // 65539 and matches neither constant, and rustc's linker invocation
+                // (`Command::output` -> `read_output`) unwrapped the resulting Err and aborted.
+                // On other unix targets both errnos already decode to `WouldBlock`, so this only
+                // adds cases; the raw comparisons are kept so nothing here changes for them.
+                if e.kind() == io::ErrorKind::WouldBlock
+                    || e.raw_os_error() == Some(libc::EWOULDBLOCK)
                     || e.raw_os_error() == Some(libc::EAGAIN)
                 {
                     Ok(false)

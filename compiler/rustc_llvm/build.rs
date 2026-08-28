@@ -392,6 +392,7 @@ fn main() {
         || target.contains("windows-gnullvm")
         || target.contains("aix")
         || target.contains("ohos")
+        || target.contains("twizzler")
     {
         "c++"
     } else if target.contains("netbsd") && llvm_static_stdcpp.is_some() {
@@ -413,7 +414,17 @@ fn main() {
 
     // C++ runtime library
     if !target.contains("msvc") {
-        if let Some(s) = llvm_static_stdcpp {
+        if target.contains("twizzler") {
+            // The twizzler sysroot ships libc++ static-only (initial-exec TLS, dylib-safe), but
+            // libc++abi.a is local-exec TLS and cannot go into a dylib — link its .so instead;
+            // the image already ships libc++abi.so in the initrd.
+            println!("cargo:rustc-link-lib=static=c++");
+            println!("cargo:rustc-link-lib=c++abi");
+            // libc++abi.so has undefined _Unwind_* and no DT_NEEDED of its own; pulling the
+            // sysroot libunwind.a (default-visibility, unlike rust's hidden in-tree copy)
+            // exports those symbols from librustc_driver.so for the loader to resolve against.
+            println!("cargo:rustc-link-lib=static=unwind");
+        } else if let Some(s) = llvm_static_stdcpp {
             assert!(!cxxflags.contains("stdlib=libc++"));
             let path = PathBuf::from(s);
             println!("cargo:rustc-link-search=native={}", path.parent().unwrap().display());

@@ -4,6 +4,17 @@ pub mod futex;
 pub mod os;
 pub mod time;
 
+// A bare `rustc prog.rs` run on a booted Twizzler has no `twizzler-runtime` shim crate to emit
+// `-ltwz_rt` for it, so the link used to end in ~20 undefined `twz_rt_*` symbols. Declaring the
+// dependency here supplies it. Gated on `twizzler_hosted`, set only by the native (`cargo
+// toolchain ports rust`) build of this crate: that is the std a Twizzler-hosted rustc links
+// programs against, and the one build where `libtwz_rt.so` is guaranteed to already exist. The
+// cross-compiler's std must not carry it -- `libtwz_rt.so` is built *by* the cross-compiler, so
+// requiring it at std link time would make a from-scratch toolchain bootstrap unsatisfiable.
+#[cfg(twizzler_hosted)]
+#[link(name = "twz_rt")]
+unsafe extern "C" {}
+
 pub fn unsupported<T>() -> crate::io::Result<T> {
     Err(unsupported_err())
 }

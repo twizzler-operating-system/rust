@@ -9,7 +9,19 @@ pub struct Mmap(memmap2::Mmap);
 #[cfg(any(miri, target_arch = "wasm32"))]
 pub struct Mmap(Vec<u8>);
 
-#[cfg(not(any(miri, target_arch = "wasm32")))]
+// Rlibs and rmeta files in the sysroot are immutable in practice, and the twizzler backend has no
+// COW mapping; a shared read map keeps metadata loading lazy (the whole point vs the Vec fallback).
+#[cfg(target_os = "twizzler")]
+impl Mmap {
+    /// # Safety
+    /// See the non-twizzler `map` below; same (in practice unenforced) precondition.
+    #[inline]
+    pub unsafe fn map(file: File) -> io::Result<Self> {
+        unsafe { memmap2::MmapOptions::new().map(&file).map(Mmap) }
+    }
+}
+
+#[cfg(not(any(miri, target_arch = "wasm32", target_os = "twizzler")))]
 impl Mmap {
     /// # Safety
     ///

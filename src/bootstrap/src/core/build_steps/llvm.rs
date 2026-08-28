@@ -545,7 +545,12 @@ impl Step for Llvm {
 
         let mut ccflags = CcFlags::default();
         if target.contains("twizzler") {
-            ccflags.push_all(&format!("-L{}/install/lib/clang/21/lib/{}/", builder.src.join("../../").display(), target));
+            // Canonicalize so the baked cmake flags don't resolve through the toolchain/install
+            // symlink on every open; a concurrent xtask run swapping that link mid-build
+            // otherwise produces spurious file-not-found errors.
+            let install = builder.src.join("../../install");
+            let install = install.canonicalize().unwrap_or(install);
+            ccflags.push_all(&format!("-L{}/lib/clang/21/lib/{}/", install.display(), target));
         }
 
         configure_cmake(builder, target, &mut cfg, true, ldflags, ccflags, &[]);
@@ -813,6 +818,7 @@ fn configure_cmake(
     }
     if target.contains("twizzler") {
         let sysroot = builder.src.join(format!("../../install/sysroots/{}", target));
+        let sysroot = sysroot.canonicalize().unwrap_or(sysroot);
         cflags.push(format!(" --sysroot {}", sysroot.display()));
         cflags.push(format!(" -isysroot {}", sysroot.display()));
         cflags.push(format!(" -target {}", target));
@@ -846,6 +852,7 @@ fn configure_cmake(
     }
     if target.contains("twizzler") {
         let sysroot = builder.src.join(format!("../../install/sysroots/{}", target));
+        let sysroot = sysroot.canonicalize().unwrap_or(sysroot);
         let cxxinc = builder.native_dir(target).join("libcxx/include/c++/v1");
         let cxxabiinc = builder.native_dir(target).join("libcxxabi/include/c++/v1");
         cxxflags.push(format!(" -I{}", cxxabiinc.display()));
@@ -1747,6 +1754,7 @@ impl Step for Libunwind {
                 bootstrap_path.push("../../../../../install/sysroots");
                 bootstrap_path.push(&format!("{}", self.target.triple));
                 bootstrap_path.push("include");
+                let bootstrap_path = bootstrap_path.canonicalize().unwrap_or(bootstrap_path);
                 cfg.include(bootstrap_path);
                 cfg.flag("-fno-stack-protector");
                 cfg.define("__ELF__", None);

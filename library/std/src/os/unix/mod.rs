@@ -106,9 +106,13 @@ pub mod process;
 // unreferenced across the dependency graph, so it stays out rather than acquiring fake typedefs.
 #[cfg(not(target_os = "twizzler"))]
 pub mod raw;
-// `JoinHandleExt` hands out a `pthread_t`. Twizzler threads are object-repr backed and there is
-// no pthread handle to return, so no value here would be honest.
 #[cfg(not(target_os = "twizzler"))]
+pub mod thread;
+// Twizzler threads are not pthreads, but the trait is load-bearing for compilation
+// (crossbeam-utils implements it for its own handle type). This version hands out the runtime
+// thread id and says so, rather than fabricating a `pthread_t`.
+#[cfg(target_os = "twizzler")]
+#[path = "twizzler_thread.rs"]
 pub mod thread;
 
 /// A prelude for conveniently writing platform-specific code.
@@ -137,7 +141,6 @@ pub mod prelude {
     #[doc(no_inline)]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub use super::process::{CommandExt, ExitStatusExt};
-    #[cfg(not(target_os = "twizzler"))]
     #[doc(no_inline)]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub use super::thread::JoinHandleExt;
