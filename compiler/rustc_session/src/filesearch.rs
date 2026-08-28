@@ -251,6 +251,31 @@ pub(crate) fn default_sysroot() -> PathBuf {
         rustlib_path.exists().then_some(p)
     }
 
+    // On Twizzler argv[0] need not be a symlink and current_dll_path is unimplemented, so
+    // accept a validated argv[0]-relative sysroot, then the system install location.
+    #[cfg(target_os = "twizzler")]
+    fn from_install_locations() -> Option<PathBuf> {
+        let argv0_sysroot = env::args_os().next().map(PathBuf::from).map(|mut p| {
+            p.pop();
+            p.pop();
+            p
+        });
+        for candidate in argv0_sysroot.into_iter().chain([PathBuf::from("/pkg/rust")]) {
+            // relative_target_rustlib_path returns a sysroot-relative path.
+            let mut rustlib_path = rustc_target::relative_target_rustlib_path(&candidate, "dummy");
+            rustlib_path.pop(); // pop off the dummy target.
+            if candidate.join(rustlib_path).exists() {
+                return Some(candidate);
+            }
+        }
+        None
+    }
+    #[cfg(not(target_os = "twizzler"))]
+    fn from_install_locations() -> Option<PathBuf> {
+        None
+    }
+
     from_env_args_next()
+        .or_else(from_install_locations)
         .unwrap_or_else(|| default_from_rustc_driver_dll().expect("Failed finding sysroot"))
 }

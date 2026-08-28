@@ -23,6 +23,10 @@ mod io_slice {
 
 mod is_terminal {
     cfg_select! {
+        target_os = "twizzler" => {
+            mod twizzler;
+            pub use twizzler::*;
+        }
         any(target_family = "unix", target_os = "wasi") => {
             mod isatty;
             pub use isatty::*;
@@ -38,10 +42,6 @@ mod is_terminal {
         target_os = "motor" => {
             mod motor;
             pub use motor::*;
-        }
-        target_os = "twizzler" => {
-            mod twizzler;
-            pub use twizzler::*;
         }
         _ => {
             mod unsupported;

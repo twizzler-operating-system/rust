@@ -18,7 +18,7 @@ use crate::os::fd::OwnedFd;
 use crate::os::raw;
 #[cfg(all(doc, not(target_arch = "wasm32")))]
 use crate::os::unix::io::AsFd;
-#[cfg(unix)]
+#[cfg(all(unix, not(target_os = "twizzler")))]
 use crate::os::unix::io::OwnedFd;
 #[cfg(target_os = "wasi")]
 use crate::os::wasi::io::OwnedFd;

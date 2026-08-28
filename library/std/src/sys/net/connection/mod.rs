@@ -1,4 +1,8 @@
 cfg_select! {
+    target_os = "twizzler" => {
+        mod twizzler;
+        pub use twizzler::*;
+    }
     any(
         all(target_family = "unix", not(target_os = "l4re")),
         target_os = "windows",
@@ -20,10 +24,6 @@ cfg_select! {
     target_os = "motor" => {
         mod motor;
         pub use motor::*;
-    }
-    target_os = "twizzler" => {
-        mod twizzler;
-        pub use twizzler::*;
     }
     target_os = "xous" => {
         mod xous;

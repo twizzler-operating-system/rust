@@ -69,6 +69,9 @@ unsafe fn realloc_fallback(
 }
 
 cfg_select! {
+    target_os = "twizzler" => {
+        mod twizzler;
+    }
     any(
         target_family = "unix",
         target_os = "wasi",
@@ -106,8 +109,5 @@ cfg_select! {
     }
     target_os = "zkvm" => {
         mod zkvm;
-    }
-    target_os = "twizzler" => {
-        mod twizzler;
     }
 }

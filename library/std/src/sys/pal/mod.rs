@@ -4,6 +4,10 @@
 #![allow(missing_debug_implementations)]
 
 cfg_select! {
+    target_os = "twizzler" => {
+        mod twizzler;
+        pub use self::twizzler::*;
+    }
     unix => {
         mod unix;
         pub use self::unix::*;
@@ -55,10 +59,6 @@ cfg_select! {
     target_os = "teeos" => {
         mod teeos;
         pub use self::teeos::*;
-    }
-    target_os = "twizzler" => {
-        mod twizzler;
-        pub use self::twizzler::*;
     }
     target_os = "zkvm" => {
         mod zkvm;

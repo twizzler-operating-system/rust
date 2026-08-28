@@ -4,8 +4,11 @@
 pub mod ffi;
 pub mod fs;
 
-#[path = "../unix/process.rs"]
-pub mod process;
+// Now that this target claims the unix family, `os::unix::process` exists and is this very
+// file. Including it again here compiles a second copy, and its impls of shared traits
+// (`AsRawFd`/`AsFd`/`IntoRawFd`/`From<OwnedFd>`) for shared types collide with the first.
+#[stable(feature = "rust1", since = "1.0.0")]
+pub use crate::os::unix::process;
 
 /// A prelude for conveniently writing platform-specific code.
 ///

@@ -1,9 +1,9 @@
 cfg_select! {
-    target_family = "unix" => {
+    target_os = "twizzler" => {
         mod unix;
         use unix as imp;
     }
-    target_os = "twizzler" => {
+    target_family = "unix" => {
         mod unix;
         use unix as imp;
     }

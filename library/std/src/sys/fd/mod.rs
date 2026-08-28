@@ -3,6 +3,10 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 cfg_select! {
+    target_os = "twizzler" => {
+        mod twizzler;
+        pub use twizzler::*;
+    }
     any(target_family = "unix", target_os = "wasi") => {
         mod unix;
         pub use unix::*;
@@ -10,10 +14,6 @@ cfg_select! {
     target_os = "hermit" => {
         mod hermit;
         pub use hermit::*;
-    }
-    target_os = "twizzler" => {
-        mod twizzler;
-        pub use twizzler::*;
     }
     target_os = "motor" => {
         mod motor;

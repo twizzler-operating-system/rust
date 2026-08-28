@@ -1,6 +1,6 @@
 use crate::spec::{
     Cc, Env, FramePointer, LinkArgs, LinkSelfContainedDefault, LinkerFlavor, Lld, Os,
-    PanicStrategy, TargetOptions, TlsModel, crt_objects,
+    PanicStrategy, TargetOptions, TlsModel, crt_objects, cvs,
 };
 
 pub(crate) fn opts() -> TargetOptions {
@@ -30,10 +30,13 @@ pub(crate) fn opts() -> TargetOptions {
     // trampoline). But note __rust_alloc and friends are defined solely by libstd.so right now; if
     // a binary ever supplies a #[global_allocator], libstd's own allocations would keep using
     // libstd's copy rather than binding to the executable's.
+    // -L/sysroot/lib: native-compilation default so bare lld resolves -lc/-lc++abi/-lunwind on
+    // a running Twizzler; on cross builds the nonexistent dir is a silent no-op (the build
+    // system supplies its own absolute -L). Cc-driver flavors handle their own search paths.
     crate::spec::add_link_args(
         &mut pre_link_args,
         LinkerFlavor::Gnu(Cc::No, Lld::No),
-        &["--pack-dyn-relocs=relr", "-Bsymbolic-non-weak-functions"],
+        &["--pack-dyn-relocs=relr", "-Bsymbolic-non-weak-functions", "-L/sysroot/lib"],
     );
     crate::spec::add_link_args(
         &mut pre_link_args,
@@ -44,6 +47,11 @@ pub(crate) fn opts() -> TargetOptions {
     TargetOptions {
         os: Os::Twizzler,
         env: Env::Unspecified,
+        // Twizzler is the first target to claim the unix family without routing through
+        // `sys/pal/unix`: std keeps its own twizzler PAL, and the family exists so the wider
+        // ecosystem's `cfg(unix)` code (and `std::os::unix`) is reachable. Every `cfg_select!`
+        // in std that lists a unix arm must therefore put the twizzler arm first.
+        families: cvs!["unix"],
         linker_flavor: LinkerFlavor::Gnu(Cc::No, Lld::Yes),
         linker: Some("ld.lld".into()),
         executables: true,

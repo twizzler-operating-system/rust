@@ -88,11 +88,27 @@ mod platform {
 }
 
 pub mod ffi;
+#[cfg(not(target_os = "twizzler"))]
+pub mod fs;
+// Twizzler keeps std on the runtime ABI, so the libc/`struct stat`-shaped `fs` above cannot
+// compile here; this is the same trait surface over `sys::fs::twizzler`.
+#[cfg(target_os = "twizzler")]
+#[path = "twizzler_fs.rs"]
 pub mod fs;
 pub mod io;
+// AF_UNIX has no Twizzler implementation. Nothing in cargo's non-dev dependency graph reaches
+// for it (only mio, socket2, tokio and wait-timeout do), so this is absent rather than a set of
+// types whose every method returns an error.
+#[cfg(not(target_os = "twizzler"))]
 pub mod net;
 pub mod process;
+// `raw` re-exports `platform::raw`, and `platform` has no twizzler arm. Deprecated since 1.8 and
+// unreferenced across the dependency graph, so it stays out rather than acquiring fake typedefs.
+#[cfg(not(target_os = "twizzler"))]
 pub mod raw;
+// `JoinHandleExt` hands out a `pthread_t`. Twizzler threads are object-repr backed and there is
+// no pthread handle to return, so no value here would be honest.
+#[cfg(not(target_os = "twizzler"))]
 pub mod thread;
 
 /// A prelude for conveniently writing platform-specific code.
@@ -121,6 +137,7 @@ pub mod prelude {
     #[doc(no_inline)]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub use super::process::{CommandExt, ExitStatusExt};
+    #[cfg(not(target_os = "twizzler"))]
     #[doc(no_inline)]
     #[stable(feature = "rust1", since = "1.0.0")]
     pub use super::thread::JoinHandleExt;

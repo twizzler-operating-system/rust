@@ -155,6 +155,14 @@ impl From<FdInfo> for FileAttr {
 }
 
 impl FilePermissions {
+    pub fn mode(&self) -> u32 {
+        self.0
+    }
+
+    pub fn from_mode(mode: u32) -> Self {
+        Self(mode)
+    }
+
     pub fn readonly(&self) -> bool {
         // TODO
         false
@@ -248,11 +256,19 @@ impl DirEntry {
     }
 
     pub fn metadata(&self) -> io::Result<FileAttr> {
-        Ok(self.meta)
+        // Not the cached `self.meta`: the runtime's directory enumeration only knows a name and a
+        // kind, and fills the rest of `fd_info` with zeros, so the cached value reports every
+        // entry as 0 bytes, mode 0, and epoch times. `DirEntry::metadata` is contracted to be a
+        // real stat of the entry, and callers rely on that -- uutils `ls -l` prefers it precisely
+        // to avoid a stat, so a listing showed 0 for every file. `lstat`, not `stat`: this must
+        // not traverse a symlink.
+        lstat(&self.path())
     }
 
     pub fn file_type(&self) -> io::Result<FileType> {
-        Ok(self.metadata()?.ty)
+        // The kind *is* carried by enumeration, so this stays free rather than going through the
+        // stat above -- and it keeps the non-traversing semantics it already had.
+        Ok(self.meta.ty)
     }
 }
 
@@ -402,7 +418,12 @@ impl File {
     }
 
     pub fn set_permissions(&self, _perm: FilePermissions) -> io::Result<()> {
-        Err(Error::from_raw_os_error(22))
+        // Nothing to apply, and nothing that can fail. `FilePermissions` carries no state this
+        // platform can act on -- `readonly()` is hardcoded false and `set_readonly` is a no-op --
+        // so every value reaching here is already the state of every file. Returning EINVAL was
+        // inconsistent with that and broke `fs::copy`, whose generic implementation ends with
+        // `writer.set_permissions(perm)`: the bytes were copied, then the copy reported failure.
+        Ok(())
     }
 
     pub fn set_times(&self, _times: FileTimes) -> io::Result<()> {
@@ -457,9 +478,12 @@ pub fn unlink(p: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn rename(_old: &Path, _new: &Path) -> io::Result<()> {
-    // TODO
-    unsupported()
+pub fn rename(old: &Path, new: &Path) -> io::Result<()> {
+    twizzler_rt_abi::fd::twz_rt_fd_rename(
+        old.as_os_str().to_str().ok_or(ErrorKind::InvalidFilename)?,
+        new.as_os_str().to_str().ok_or(ErrorKind::InvalidFilename)?,
+    )?;
+    Ok(())
 }
 
 pub fn set_perm(_p: &Path, _perm: FilePermissions) -> io::Result<()> {
