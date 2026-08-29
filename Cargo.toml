@@ -92,8 +92,22 @@ codegen-units = 1
 # If you want to use a crate with local modifications, you can set a path or git dependency here.
 # For git dependencies, also add your source to ALLOWED_SOURCES in src/tools/tidy/src/extdeps.rs.
 [patch.crates-io]
-libc = { path = "library/libc" }
+# One libc, not two: `library/libc` is a submodule of this repo and `src/ports/libc` is a
+# submodule of the parent, both checkouts of the same fork. They drifted (mlibc ucontext padding,
+# aarch64 stat layout, tcflag_t retypes and F_*LCK landed only in the parent's copy, which is not
+# the one std links). Point both this workspace and `library/` at the parent's copy, which is
+# authoritative; `library/libc` stays checked out but unreferenced.
+libc = { path = "../../../src/ports/libc" }
 libloading = { path = "../../../src/ports/rust_libloading" }
+# Reached for the twizzler target via tempfile and xattr. The registry crate's libc backend is
+# per-OS with no arm for an unknown unix, so it fails to compile here (`_Opcode`, `F_RDLCK`,
+# `FALLOC_FL_NO_HIDE_STALE`). This workspace has its own lock, so the root [patch] does not apply.
+rustix = { path = "../../../src/ports/rustix" }
+# Same story as rustix: the registry crate's link_name chain has no twizzler arm, so `errno`
+# resolves to the unmangled `errno_location` instead of mlibc's `__errno_location`, and
+# librustc_driver fails relocation on-target. Our fork has the arm; the root [patch] cannot
+# reach this workspace because it has its own lock.
+errno = { path = "../../../src/ports/rust-errno" }
 twizzler-rt-abi = { path = "library/twizzler-abis/rt-abi" }
 getrandom = { git = "https://github.com/twizzler-operating-system/getrandom-twizzler.git", branch = "twizzler" }
 getrandom02 = { git = "https://github.com/twizzler-operating-system/getrandom-twizzler.git", branch = "twizzler-0.2", package = "getrandom" }

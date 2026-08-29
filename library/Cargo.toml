@@ -60,4 +60,5 @@ rustc-std-workspace-core = { path = 'rustc-std-workspace-core' }
 rustc-std-workspace-alloc = { path = 'rustc-std-workspace-alloc' }
 rustc-std-workspace-std = { path = 'rustc-std-workspace-std' }
 # TODO: remove after Twizzler early development.
-libc = { path = "./libc" }
+# The parent repo's checkout is authoritative; see the note in the root Cargo.toml.
+libc = { path = "../../../../src/ports/libc" }

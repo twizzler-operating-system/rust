@@ -1,0 +1,27 @@
+[package]
+name = "twizzler-types"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+
+# We depend on some usually built-in crates here. In particular is we need to adhere to this "rustc-std-workspace-core"
+# semi-feature (https://github.com/rust-lang/wg-cargo-std-aware/issues/51).
+#[dependencies.compiler_builtins]
+#optional = true
+#version = "0.1.160"
+
+[dependencies.core]
+optional = true
+package = "rustc-std-workspace-core"
+version = "1.0.0"
+
+[features]
+# Activate if compiling as part of libstd.
+rustc-dep-of-std = [
+    "core",
+    #"compiler_builtins/rustc-dep-of-std",
+]
