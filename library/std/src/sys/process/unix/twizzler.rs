@@ -61,13 +61,10 @@ impl Command {
             );
         }
 
-        match self.setup_io(default, true) {
-            Ok((_, _)) => {
-                // FIXME: This is tough because we don't support the exec syscalls
-                unimplemented!();
-            }
-            Err(e) => e,
-        }
+        // A compartment cannot replace its own image, so there is nothing to exec into. Report it
+        // as an error rather than panicking: `exec` returns `io::Error` precisely so a caller can
+        // fall back (cargo's `exec_replace` does), and a panic here takes the process out instead.
+        io::const_error!(io::ErrorKind::Unsupported, "exec is not supported on twizzler")
     }
 
     fn build_bindings(

@@ -60,5 +60,8 @@ rustc-std-workspace-core = { path = 'rustc-std-workspace-core' }
 rustc-std-workspace-alloc = { path = 'rustc-std-workspace-alloc' }
 rustc-std-workspace-std = { path = 'rustc-std-workspace-std' }
 # TODO: remove after Twizzler early development.
-# The parent repo's checkout is authoritative; see the note in the root Cargo.toml.
-libc = { path = "../../../../src/ports/libc" }
+# The parent repo's checkout is authoritative; see the note in the root Cargo.toml. It is copied
+# in here by xtask's bootstrap (alongside twizzler-abis) rather than referenced by a relative path
+# out of the rust tree: `../../../../src/ports/libc` is correct in the source tree and wrong once
+# rust-src is installed, where four levels up is `toolchain/<tag>/lib/`.
+libc = { path = "./twizzler-libc" }

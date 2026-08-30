@@ -13,11 +13,21 @@ pub fn twz_rt_gc() {
     }
 }
 
-/// Exit with the provided error code. If the main thread for a program
-/// exits, the remaining threads will exit as well.
+/// Exit the process with the provided code, from any thread (POSIX `exit()` semantics): all
+/// other threads are ended as well.
 pub fn twz_rt_exit(code: ExitCode) -> ! {
     unsafe {
         nk!(crate::bindings::twz_rt_exit(code));
+        unreachable!()
+    }
+}
+
+/// Exit only the calling thread. Thread trampolines call this when a thread's entry function
+/// returns; nothing else should. Distinct from [`twz_rt_exit`] so the runtime can tell a
+/// finished thread from a process-exit request.
+pub fn twz_rt_thread_exit(code: ExitCode) -> ! {
+    unsafe {
+        nk!(crate::bindings::twz_rt_thread_exit(code));
         unreachable!()
     }
 }

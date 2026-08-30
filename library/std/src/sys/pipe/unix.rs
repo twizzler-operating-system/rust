@@ -37,6 +37,11 @@ pub fn pipe() -> io::Result<(Pipe, Pipe)> {
             let pipe2 = pipe.duplicate()?;
             twizzler_rt_abi::fd::twz_rt_fd_shutdown(pipe.as_raw_fd(), false, true)?;
             twizzler_rt_abi::fd::twz_rt_fd_shutdown(pipe2.as_raw_fd(), true, false)?;
+            // anon_pipe semantics: cloexec on both ends, like pipe2(O_CLOEXEC) above. Without
+            // this the exec path's inherit-all keeps both ends, and a spawned child receives
+            // the write end of its own stdin pipe -- so EOF-on-parent-close never arrives.
+            twizzler_rt_abi::fd::twz_rt_fd_set_cloexec(pipe.as_raw_fd(), true)?;
+            twizzler_rt_abi::fd::twz_rt_fd_set_cloexec(pipe2.as_raw_fd(), true)?;
             Ok((pipe, pipe2))
         }
         _ => {

@@ -45,7 +45,9 @@ impl Thread {
                 crate::sys::thread_local::destructors::run();
                 crate::rt::thread_cleanup();
             }
-            twizzler_rt_abi::core::twz_rt_exit(0);
+            // Thread-exit, not process-exit: `twz_rt_exit` ends the whole process (POSIX exit()),
+            // and a finished thread retiring through it is what made the two indistinguishable.
+            twizzler_rt_abi::core::twz_rt_thread_exit(0);
         }
     }
 
