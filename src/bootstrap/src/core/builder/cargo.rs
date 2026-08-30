@@ -820,8 +820,22 @@ impl Builder<'_> {
                 // If this is ever removed, be sure to add something else in
                 // its place to keep the restrictions in place (or make a way
                 // to unset RUSTC_BOOTSTRAP).
-                "binary-dep-depinfo,proc_macro_span,proc_macro_span_shrink,proc_macro_diagnostic"
-                    .to_string()
+                let mut allowed =
+                    "binary-dep-depinfo,proc_macro_span,proc_macro_span_shrink,proc_macro_diagnostic"
+                        .to_string();
+                if target.triple.contains("twizzler") {
+                    // twizzler-rt-abi is an ordinary dependency of tools built *for* twizzler
+                    // (memmap2's backend reaches it), and it genuinely needs these. The
+                    // restriction above exists so tools don't require nightly by accident; a
+                    // twizzler-hosted tool can only ever be built by this nightly toolchain, so
+                    // the guard buys nothing here. Scoped to the target so every other tool
+                    // keeps the upstream restriction exactly as it was.
+                    allowed.push_str(
+                        ",allocator_api,auto_traits,io_error_inprogress,io_error_more,\
+                         negative_impls,rustc_attrs",
+                    );
+                }
+                allowed
             }
             Mode::Std | Mode::Rustc | Mode::Codegen | Mode::ToolRustcPrivate => String::new(),
         };

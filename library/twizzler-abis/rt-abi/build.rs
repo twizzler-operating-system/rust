@@ -1,5 +1,3 @@
-#![feature(string_replace_in_place)]
-
 fn main() {
     let headers = std::env::var("TWIZZLER_ABI_BUILTIN_HEADERS").ok();
     let sysroots = std::env::var("TWIZZLER_ABI_SYSROOTS").ok();
@@ -47,8 +45,12 @@ fn main() {
     if let Some(sysroots) = sysroots.filter(|_| !host_build) {
         let sysheaders = format!("{}/{}/include", sysroots, target);
         bg.arg("-I").arg(sysheaders);
-        if target.ends_with("-none") {
-            target.replace_last("-none", "-twizzler");
+        // Stable equivalent of the former `replace_last`: the guard was already `ends_with`,
+        // so this is a suffix rewrite. Kept off unstable APIs deliberately -- bootstrap builds
+        // tools with a restricted `-Zallow-features`, so a `#![feature]` here fails the cargo
+        // build (E0725) even though it is fine for the std build.
+        if let Some(stem) = target.strip_suffix("-none") {
+            target = format!("{}-twizzler", stem);
         }
         let sysheaders = format!("{}/{}/include", sysroots, target);
         bg.arg("-I").arg(sysheaders);

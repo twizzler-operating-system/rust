@@ -792,6 +792,43 @@ pub fn twz_rt_fd_dup2(fd: RawFd, to: RawFd) -> Result<RawFd> {
     }
 }
 
+/// Read a descriptor's close-on-exec flag.
+pub fn twz_rt_fd_get_cloexec(fd: RawFd) -> Result<bool> {
+    let mut val: u32 = 0;
+    unsafe {
+        let e = nk!(crate::bindings::twz_rt_fd_cmd(
+            fd,
+            crate::bindings::FD_CMD_GET_CLOEXEC,
+            core::ptr::null_mut(),
+            (&raw mut val).cast(),
+        ));
+        let raw = RawTwzError::new(e);
+        if !raw.is_success() {
+            return Err(raw.error());
+        }
+    }
+    Ok(val != 0)
+}
+
+/// Set or clear a descriptor's close-on-exec flag. A descriptor made by [twz_rt_fd_dup] or
+/// [twz_rt_fd_dup2] always starts with the flag clear.
+pub fn twz_rt_fd_set_cloexec(fd: RawFd, on: bool) -> Result<()> {
+    let mut val: u32 = on as u32;
+    unsafe {
+        let e = nk!(crate::bindings::twz_rt_fd_cmd(
+            fd,
+            crate::bindings::FD_CMD_SET_CLOEXEC,
+            (&raw mut val).cast(),
+            core::ptr::null_mut(),
+        ));
+        let raw = RawTwzError::new(e);
+        if !raw.is_success() {
+            return Err(raw.error());
+        }
+    }
+    Ok(())
+}
+
 /// Sync a file descriptor.
 pub fn twz_rt_fd_sync(fd: RawFd) {
     unsafe {

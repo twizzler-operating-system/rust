@@ -225,20 +225,39 @@ impl Iterator for ReadDir {
     type Item = io::Result<DirEntry>;
 
     fn next(&mut self) -> Option<io::Result<DirEntry>> {
-        if self.bufpos < self.buflen {
-            let name_entry = self.buf[self.bufpos];
-            let de = DirEntry::new(
-                String::from_utf8_lossy(name_entry.name_bytes()).into_owned().into(),
-                FileAttr::from(FdInfo::from(name_entry.info)),
-                self.root.clone(),
-            );
-            self.bufpos += 1;
-            return Some(Ok(de));
+        // A loop rather than the tail-recursion this replaced: with the filter below, a buffer
+        // consisting only of `.` and `..` would otherwise recurse once per refill.
+        loop {
+            if self.bufpos < self.buflen {
+                let name_entry = self.buf[self.bufpos];
+                self.bufpos += 1;
+                // `read_dir` is contracted to skip the current- and parent-directory entries,
+                // and every other backend does it right here (`sys/fs/unix.rs` filters at two
+                // sites). Twizzler needs it at this layer specifically: namespace objects store
+                // `.` and `..` as real nodes because traversal resolves through them, and the
+                // runtime hands them out because POSIX `readdir` -- which mlibc serves from the
+                // same enumeration -- is required to return them. This is the boundary where
+                // that stops being true, so it is the only place the filter can go without
+                // breaking one of the two contracts.
+                //
+                // Without this, `Path::file_name()` returns `None` for an entry's path, which
+                // is what made rustc panic on its own incremental session directories
+                // (rustc_incremental/persist/fs.rs, `file_name().unwrap()`).
+                let name_bytes = name_entry.name_bytes();
+                if name_bytes == b"." || name_bytes == b".." {
+                    continue;
+                }
+                let de = DirEntry::new(
+                    String::from_utf8_lossy(name_bytes).into_owned().into(),
+                    FileAttr::from(FdInfo::from(name_entry.info)),
+                    self.root.clone(),
+                );
+                return Some(Ok(de));
+            }
+            if !self.read_next() {
+                return None;
+            }
         }
-        if self.read_next() {
-            return self.next();
-        }
-        None
     }
 }
 

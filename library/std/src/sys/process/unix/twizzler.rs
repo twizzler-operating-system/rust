@@ -90,9 +90,9 @@ impl Command {
         let stdout_idx = bindings.iter().position(|b| b.fd == 1);
         let stderr_idx = bindings.iter().position(|b| b.fd == 2);
 
-        let mut build = |stdio: &ChildStdio, idx: Option<usize>, fd: i32| -> io::Result<()> {
+        let mut build = |stdio: &ChildStdio, idx: Option<usize>, fd: i32| -> io::Result<bool> {
             match stdio {
-                ChildStdio::Inherit => {}
+                ChildStdio::Inherit => return Ok(false),
                 ChildStdio::Explicit(src_fd) => {
                     let src_idx = bindings.iter().position(|b| b.fd == *src_fd);
                     if let Some(src_idx) = src_idx {
@@ -131,12 +131,29 @@ impl Command {
                     }
                 }
             }
-            Ok(())
+            Ok(true)
         };
 
-        build(&stdio.stdin, stdin_idx, 0)?;
-        build(&stdio.stdout, stdout_idx, 1)?;
-        build(&stdio.stderr, stderr_idx, 2)?;
+        let mut redirected: Vec<i32> = Vec::new();
+        for (stdio, idx, fd) in [
+            (&stdio.stdin, stdin_idx, 0),
+            (&stdio.stdout, stdout_idx, 1),
+            (&stdio.stderr, stderr_idx, 2),
+        ] {
+            if build(stdio, idx, fd)? {
+                redirected.push(fd);
+            }
+        }
+
+        // Drop what the child must not inherit. This runs *after* redirect resolution rather than
+        // inside `read_binds`, and the distinction is load-bearing: Rust opens files close-on-exec
+        // by default, so `Command::stdout(File::create(..))` hands us a cloexec descriptor as the
+        // child's stdout. That is a redirect target, not an inheritance. Filtering any earlier
+        // would discard the very descriptor the caller asked to pass down.
+        bindings.retain(|b| {
+            redirected.contains(&b.fd)
+                || !twizzler_rt_abi::fd::twz_rt_fd_get_cloexec(b.fd).unwrap_or(false)
+        });
 
         Ok(bindings)
     }
@@ -153,11 +170,15 @@ impl Command {
             Some(envp) => envp.as_ptr(),
         };
 
-        let bindings = self.build_bindings(&stdio)?;
-
+        // Before `build_bindings`, not after: `pre_exec` callbacks run in the parent here, and
+        // clearing FD_CLOEXEC from one is how a caller (jobserver, most notably) hands a
+        // descriptor to the child. A snapshot taken first would predate that clear and filter the
+        // descriptor right back out.
         for callback in self.get_closures().iter_mut() {
             callback()?;
         }
+
+        let bindings = self.build_bindings(&stdio)?;
 
         let process_handle = twizzler_rt_abi::exec::twz_rt_exec_spawn(
             self.get_program_cstr(),
