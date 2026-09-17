@@ -96,10 +96,12 @@ pub mod fs;
 #[path = "twizzler_fs.rs"]
 pub mod fs;
 pub mod io;
-// AF_UNIX has no Twizzler implementation. Nothing in cargo's non-dev dependency graph reaches
-// for it (only mio, socket2, tokio and wait-timeout do), so this is absent rather than a set of
-// types whose every method returns an error.
 #[cfg(not(target_os = "twizzler"))]
+pub mod net;
+// Twizzler has no AF_UNIX transport. The module still exists so that portable code (gdbstub,
+// async-net, mio's uds, signal-hook's socketpair path) compiles unmodified; see the file.
+#[cfg(target_os = "twizzler")]
+#[path = "twizzler_net.rs"]
 pub mod net;
 pub mod process;
 // `raw` re-exports `platform::raw`, and `platform` has no twizzler arm. Deprecated since 1.8 and
