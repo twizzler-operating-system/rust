@@ -68,7 +68,7 @@ pub(crate) fn opts() -> TargetOptions {
         crt_static_allows_dylibs: true,
         dynamic_linking: true,
         has_thread_local: true,
-        frame_pointer: FramePointer::NonLeaf,
+        frame_pointer: FramePointer::MayOmit,
         link_self_contained: LinkSelfContainedDefault::False,
         ..Default::default()
     }

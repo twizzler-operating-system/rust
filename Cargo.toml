@@ -109,5 +109,11 @@ rustix = { path = "../../../src/ports/rustix" }
 # reach this workspace because it has its own lock.
 errno = { path = "../../../src/ports/rust-errno" }
 twizzler-rt-abi = { path = "library/twizzler-abis/rt-abi" }
+# rustc wraps every executed query in stacker::maybe_grow, and upstream stacker has no twizzler
+# backend: remaining_stack() was always None, so every outermost call allocated, zeroed and
+# unmapped a 1 MiB segment -- ~85k segments and ~86 GB of zeroing per cargo build, which Linux
+# (working bounds, 8 MiB stack) does exactly zero of. This copy adds a twizzler backend that asks
+# the runtime via twz_rt_get_stack_bounds; {0,0} (unknown) keeps the old grow-always behavior.
+stacker = { path = "library/stacker" }
 getrandom = { git = "https://github.com/twizzler-operating-system/getrandom-twizzler.git", branch = "twizzler" }
 getrandom02 = { git = "https://github.com/twizzler-operating-system/getrandom-twizzler.git", branch = "twizzler-0.2", package = "getrandom" }

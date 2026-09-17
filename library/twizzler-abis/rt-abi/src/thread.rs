@@ -174,6 +174,35 @@ pub fn twz_rt_join_thread(id: ThreadId, timeout: Option<Duration>) -> Result<()>
     }
 }
 
+/// Post a signal to another thread of this compartment.
+///
+/// The handler runs on `id`, not on the caller, and a target parked in a blocking wait is woken so
+/// it reaches a delivery point promptly. Asynchronous: this returns once the signal is posted, not
+/// once the handler has run.
+///
+/// Waking the target does not by itself make its blocking call fail with
+/// [crate::error::GenericError::Interrupted] -- that is [twz_rt_interrupt_bump]'s job, and only
+/// libc knows whether POSIX wants this call interrupted or restarted.
+pub fn twz_rt_thread_signal(id: ThreadId, signal: u64) -> Result<()> {
+    unsafe { RawTwzError::new(nk!(crate::bindings::twz_rt_thread_signal(id, signal))).result() }
+}
+
+/// Stack bounds of a thread.
+pub type StackBounds = crate::bindings::stack_bounds;
+
+/// The calling thread's stack bounds, or `None` if the runtime does not know them (a
+/// compartment's main thread, or a runtime that does not track stacks). Spawned-thread stacks
+/// have no guard page below the low bound, so callers pacing recursion against these bounds must
+/// keep their own red zone.
+pub fn twz_rt_get_stack_bounds() -> Option<StackBounds> {
+    let bounds = unsafe { nk!(crate::bindings::twz_rt_get_stack_bounds()) };
+    if bounds.start == 0 || bounds.len == 0 {
+        None
+    } else {
+        Some(bounds)
+    }
+}
+
 /// Information the runtime keeps about a live thread.
 pub type ThreadInfo = crate::bindings::thread_info;
 

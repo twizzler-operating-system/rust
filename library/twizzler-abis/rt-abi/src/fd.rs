@@ -81,6 +81,8 @@ pub struct FdInfo {
     pub modified: Duration,
     /// Unix mode
     pub unix_mode: u32,
+    /// Number of names bound to the underlying object
+    pub nlink: u32,
 }
 
 impl From<crate::bindings::fd_info> for FdInfo {
@@ -94,6 +96,7 @@ impl From<crate::bindings::fd_info> for FdInfo {
             accessed: value.accessed.into(),
             modified: value.modified.into(),
             unix_mode: value.unix_mode,
+            nlink: value.nlink,
         }
     }
 }
@@ -109,6 +112,7 @@ impl From<FdInfo> for crate::bindings::fd_info {
             accessed: value.accessed.into(),
             modified: value.modified.into(),
             unix_mode: value.unix_mode,
+            nlink: value.nlink,
         }
     }
 }
@@ -351,6 +355,19 @@ pub fn twz_rt_fd_mkns(name: &str) -> Result<()> {
 pub fn twz_rt_fd_symlink(name: &str, target: &str) -> Result<()> {
     unsafe {
         RawTwzError::new(nk!(crate::bindings::twz_rt_fd_symlink(
+            name.as_ptr().cast(),
+            name.len(),
+            target.as_ptr().cast(),
+            target.len(),
+        )))
+        .result()
+    }
+}
+
+/// Make a new hard link: bind `name` to the object `target` already names.
+pub fn twz_rt_fd_link(name: &str, target: &str) -> Result<()> {
+    unsafe {
+        RawTwzError::new(nk!(crate::bindings::twz_rt_fd_link(
             name.as_ptr().cast(),
             name.len(),
             target.as_ptr().cast(),

@@ -16,6 +16,8 @@ pub trait MetadataExt {
     #[stable(feature = "metadata_ext2", since = "1.8.0")]
     fn st_mode(&self) -> u32;
     #[stable(feature = "metadata_ext2", since = "1.8.0")]
+    fn st_nlink(&self) -> u32;
+    #[stable(feature = "metadata_ext2", since = "1.8.0")]
     fn st_atime(&self) -> i64;
     #[stable(feature = "metadata_ext2", since = "1.8.0")]
     fn st_atime_nsec(&self) -> i64;
@@ -41,6 +43,10 @@ impl MetadataExt for Metadata {
 
     fn st_mode(&self) -> u32 {
         self.as_inner().mode()
+    }
+
+    fn st_nlink(&self) -> u32 {
+        self.as_inner().nlink()
     }
 
     fn st_atime(&self) -> i64 {

@@ -11,7 +11,7 @@ use crate::io::{self, BorrowedCursor, Error, ErrorKind, IoSlice, IoSliceMut, See
 use crate::os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd};
 use crate::path::{Path, PathBuf};
 use crate::sys::fd::FileDesc;
-pub use crate::sys::fs::common::{Dir, copy, exists};
+pub use crate::sys::fs::common::{Dir, copy, exists, remove_dir_all};
 use crate::sys::helpers::run_path_with_cstr;
 use crate::sys::time::SystemTime;
 use crate::sys::{AsInner, AsInnerMut, FromInner, IntoInner, time, unsupported};
@@ -28,6 +28,7 @@ pub struct FileAttr {
     times: FileTimes,
     id: ObjID,
     mode: u32,
+    nlink: u32,
 }
 
 const NR_NAME_ENTRIES: usize = 128;
@@ -130,6 +131,10 @@ impl FileAttr {
     pub fn mode(&self) -> u32 {
         self.mode
     }
+
+    pub fn nlink(&self) -> u32 {
+        self.nlink
+    }
 }
 
 impl From<FdInfo> for FileAttr {
@@ -150,6 +155,9 @@ impl From<FdInfo> for FileAttr {
             },
             id: value.id.into(),
             mode: value.unix_mode,
+            // Runtimes that do not track a link count report 0; every file that exists has at
+            // least the one name it was found by.
+            nlink: if value.nlink == 0 { 1 } else { value.nlink },
         }
     }
 }
@@ -513,10 +521,6 @@ pub fn rmdir(p: &Path) -> io::Result<()> {
     unlink(p)
 }
 
-pub fn remove_dir_all(_path: &Path) -> io::Result<()> {
-    unsupported()
-}
-
 pub fn try_exists(path: &Path) -> io::Result<bool> {
     stat(path)?;
     Ok(true)
@@ -540,8 +544,12 @@ pub fn symlink(original: &Path, link: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn link(_src: &Path, _dst: &Path) -> io::Result<()> {
-    unsupported()
+pub fn link(src: &Path, dst: &Path) -> io::Result<()> {
+    twizzler_rt_abi::fd::twz_rt_fd_link(
+        dst.as_os_str().to_str().ok_or(ErrorKind::InvalidFilename)?,
+        src.as_os_str().to_str().ok_or(ErrorKind::InvalidFilename)?,
+    )?;
+    Ok(())
 }
 
 pub fn stat(p: &Path) -> io::Result<FileAttr> {

@@ -823,6 +823,9 @@ fn configure_cmake(
         cflags.push(format!(" -isysroot {}", sysroot.display()));
         cflags.push(format!(" -target {}", target));
         cflags.push(" -D__Twizzler__");
+        // The twizzler clang target keeps frame pointers by default; on this LLVM (which rustc
+        // runs in LLVM_passes) that costs ~1.25x vs the host build. Unwinding is DWARF, so omit.
+        cflags.push(" -fomit-frame-pointer");
         //ldflags.push_all(" -ltwzstub");
     }
     cfg.define("CMAKE_C_FLAGS", cflags);
@@ -862,6 +865,8 @@ fn configure_cmake(
         cxxflags.push(format!(" -target {}", target));
         //cxxflags.push(" -nostdlib");
         cxxflags.push(" -D__Twizzler__");
+        // See CMAKE_C_FLAGS above: omit frame pointers on the twizzler LLVM (the one rustc links).
+        cxxflags.push(" -fomit-frame-pointer");
         //ldflags.push_all(" -ltwzstub");
         cfg.define("CMAKE_SYSROOT", sysroot.display().to_string());
         cfg.define("CMAKE_FIND_ROOT_PATH_MODE_PROGRAM", "NEVER");

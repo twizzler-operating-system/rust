@@ -1878,7 +1878,13 @@ fn add_pre_link_args(cmd: &mut dyn Linker, sess: &Session, flavor: LinkerFlavor)
 /// Add a link script embedded in the target, if applicable.
 fn add_link_script(cmd: &mut dyn Linker, sess: &Session, tmpdir: &Path, crate_type: CrateType) {
     match (crate_type, &sess.target.link_script) {
-        (CrateType::Dylib | CrateType::Cdylib | CrateType::Executable, Some(script)) => {
+        // ProcMacro is linked like a cdylib and, on Twizzler, has to be laid out by the target's
+        // script like one: without it the segments come out at a default LLD layout that dynlink
+        // cannot map, so no proc macro built on target is loadable.
+        (
+            CrateType::Dylib | CrateType::Cdylib | CrateType::ProcMacro | CrateType::Executable,
+            Some(script),
+        ) => {
             if crate_type == CrateType::Dylib && sess.target.os != Os::Twizzler {
                 return;
             }

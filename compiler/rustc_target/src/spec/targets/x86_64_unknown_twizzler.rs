@@ -4,7 +4,9 @@ const LINKER_SCRIPT: &str = include_str!("./x86_64_unknown_twizzler_linker_scrip
 
 pub(crate) fn target() -> Target {
     let mut base = crate::spec::base::twizzler::opts();
-    base.cpu = "x86-64".into();
+    // x86-64-v2: +popcnt, +sse4.2, +cx16, etc. Safe on any hardware/VM this targets (Nehalem+,
+    // and QEMU TCG emulates all of it); rdrnd/rdseed are additions on top, as before.
+    base.cpu = "x86-64-v2".into();
     base.max_atomic_width = Some(64);
     base.features = "+rdrnd,+rdseed".into();
     base.stack_probes = StackProbeType::Inline;
