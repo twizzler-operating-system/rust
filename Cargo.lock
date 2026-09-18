@@ -2431,7 +2431,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ebd1ebda747ae161a4a377bf93f87e18d46faad2331cc0c7d25b84b1d445f49"
 dependencies = [
  "log",
- "memmap2 0.2.3",
+ "memmap2",
  "parking_lot",
  "perf-event-open-sys",
  "rustc-hash 1.1.0",
@@ -2451,14 +2451,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "723e3ebdcdc5c023db1df315364573789f8857c11b631a2fdfad7c00f5c046b4"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "memmap2"
-version = "0.9.5"
-dependencies = [
- "libc",
- "twizzler-rt-abi",
 ]
 
 [[package]]
@@ -3768,7 +3760,7 @@ dependencies = [
  "jobserver",
  "libc",
  "measureme",
- "memmap2 0.9.5",
+ "memmap2",
  "parking_lot",
  "portable-atomic",
  "rustc-hash 2.1.1",
