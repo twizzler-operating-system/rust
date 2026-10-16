@@ -256,6 +256,7 @@ impl From<SecurityError> for crate::io::ErrorKind {
             SecurityError::InvalidGate => crate::io::ErrorKind::PermissionDenied,
             SecurityError::GateDenied => crate::io::ErrorKind::PermissionDenied,
             SecurityError::InvalidScheme => crate::io::ErrorKind::InvalidInput,
+            SecurityError::MaxNestExceeded => crate::io::ErrorKind::PermissionDenied,
         }
     }
 }
