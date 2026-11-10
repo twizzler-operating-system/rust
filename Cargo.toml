@@ -103,11 +103,8 @@ libloading = { path = "../../../src/ports/rust_libloading" }
 # per-OS with no arm for an unknown unix, so it fails to compile here (`_Opcode`, `F_RDLCK`,
 # `FALLOC_FL_NO_HIDE_STALE`). This workspace has its own lock, so the root [patch] does not apply.
 rustix = { path = "../../../src/ports/rustix" }
-# Same story as rustix: the registry crate's link_name chain has no twizzler arm, so `errno`
-# resolves to the unmangled `errno_location` instead of mlibc's `__errno_location`, and
-# librustc_driver fails relocation on-target. Our fork has the arm; the root [patch] cannot
-# reach this workspace because it has its own lock.
-errno = { path = "../../../src/ports/rust-errno" }
+# errno needs no patch: the registry crate links the unmangled `errno_location` on an OS it has
+# no arm for, and mlibc's twizzler sysdeps export that name as an alias of `__errno_location`.
 twizzler-rt-abi = { path = "library/twizzler-abis/rt-abi" }
 # rustc wraps every executed query in stacker::maybe_grow, and upstream stacker has no twizzler
 # backend: remaining_stack() was always None, so every outermost call allocated, zeroed and

@@ -11,14 +11,10 @@ ENTRY(_start)
 MAX_OBJECT_SIZE = 1024 * 1024 * 1024; /* 0x40000000 */
 NULLPAGE_SIZE = 0x1000;
 
-/* We start the text segment after MAXPAGESIZE which is 64K for aarch64.
-   This is necessary since sections are aligned to MAXPAGESIZE. Starting the
-   text segment at the canonical NULLPAGE_SIZE results in a section being aligned
-   to address 0. This is bad because when the ELF is loaded, and memory is dereferenced
-   we experience a NULLPAGE fault. So the workaround is to start the text segment
-   at or after MAXPAGESIZE. */
-text_begin = CONSTANT(MAXPAGESIZE);
-/* This segment also gets aligned up due to DATA_SEGMENT_ALIGN directive */
+/* The text segment is direct-mapped from the ELF object, so p_offset must equal
+   p_vaddr - NULLPAGE_SIZE. The target spec links with -z max-page-size=0x1000 so that holds
+   with MAXPAGESIZE == NULLPAGE_SIZE (lld's aarch64 default of 64K would shift text by 0xf000). */
+text_begin = NULLPAGE_SIZE;
 data_begin = MAX_OBJECT_SIZE + NULLPAGE_SIZE;
 
 SECTIONS

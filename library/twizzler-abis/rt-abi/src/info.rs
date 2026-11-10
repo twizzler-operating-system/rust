@@ -16,3 +16,11 @@ impl SystemInfo {
 pub fn twz_rt_get_sysinfo() -> SystemInfo {
     unsafe { nk!(crate::bindings::twz_rt_get_sysinfo()) }
 }
+
+/// Physical memory sizes, in pages.
+pub type MemoryInfo = crate::bindings::memory_info;
+
+/// Get physical memory sizes.
+pub fn twz_rt_get_memory_info() -> MemoryInfo {
+    unsafe { nk!(crate::bindings::twz_rt_get_memory_info()) }
+}

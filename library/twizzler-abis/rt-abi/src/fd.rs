@@ -419,6 +419,7 @@ pub enum OpenKind {
     Compartment = crate::bindings::open_kind_OpenKind_Compartment,
     KernelConsole = crate::bindings::open_kind_OpenKind_KernelConsole,
     Kqueue = crate::bindings::open_kind_OpenKind_Kqueue,
+    SocketPair = crate::bindings::open_kind_OpenKind_SocketPair,
 }
 
 impl TryFrom<u32> for OpenKind {
@@ -437,6 +438,7 @@ impl TryFrom<u32> for OpenKind {
             crate::bindings::open_kind_OpenKind_Compartment => Ok(Self::Compartment),
             crate::bindings::open_kind_OpenKind_KernelConsole => Ok(Self::KernelConsole),
             crate::bindings::open_kind_OpenKind_Kqueue => Ok(Self::Kqueue),
+            crate::bindings::open_kind_OpenKind_SocketPair => Ok(Self::SocketPair),
 
             _ => Err(()),
         }
@@ -457,6 +459,7 @@ impl From<OpenKind> for u32 {
             OpenKind::Compartment => crate::bindings::open_kind_OpenKind_Compartment,
             OpenKind::KernelConsole => crate::bindings::open_kind_OpenKind_KernelConsole,
             OpenKind::Kqueue => crate::bindings::open_kind_OpenKind_Kqueue,
+            OpenKind::SocketPair => crate::bindings::open_kind_OpenKind_SocketPair,
         }
     }
 }

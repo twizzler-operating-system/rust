@@ -13,7 +13,7 @@ use bitflags::bitflags;
 use crate::{
     bindings::{
         object_cmd, object_create, object_tie, sync_info, twz_rt_object_cmd, LEN_MUL,
-        OBJECT_CMD_DELETE, OBJECT_CMD_SYNC, OBJECT_CMD_UPDATE,
+        OBJECT_CMD_DELETE, OBJECT_CMD_PRELOAD, OBJECT_CMD_SYNC, OBJECT_CMD_UPDATE,
     },
     error::{RawTwzError, ResourceError, TwzError},
     nk, Result,
@@ -151,6 +151,7 @@ pub enum ObjectCmd {
     Delete = OBJECT_CMD_DELETE,
     Sync = OBJECT_CMD_SYNC,
     Update = OBJECT_CMD_UPDATE,
+    Preload = OBJECT_CMD_PRELOAD,
 }
 
 impl TryFrom<object_cmd> for ObjectCmd {
@@ -161,6 +162,7 @@ impl TryFrom<object_cmd> for ObjectCmd {
             OBJECT_CMD_DELETE => Ok(ObjectCmd::Delete),
             OBJECT_CMD_SYNC => Ok(ObjectCmd::Sync),
             OBJECT_CMD_UPDATE => Ok(ObjectCmd::Update),
+            OBJECT_CMD_PRELOAD => Ok(ObjectCmd::Preload),
             _ => Err(TwzError::INVALID_ARGUMENT),
         }
     }

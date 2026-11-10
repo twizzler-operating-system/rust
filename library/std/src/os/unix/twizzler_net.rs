@@ -1,11 +1,13 @@
 //! `std::os::unix::net` for Twizzler.
 //!
 //! There is no AF_UNIX transport here, and this file does not fake one: every operation that
-//! would create, address, or pair a socket fails with [`io::ErrorKind::Unsupported`]. What is
-//! real is the descriptor plumbing -- the fd traits, `try_clone`, `set_nonblocking`, and
-//! `Read`/`Write` on `UnixStream` -- so a descriptor that arrives through `FromRawFd` behaves
-//! like the fd it is. The point is that code written against the portable API compiles and
-//! fails at the call that actually needs a unix socket, not at link or module resolution.
+//! would create or address a socket fails with [`io::ErrorKind::Unsupported`]. What is real is
+//! `UnixStream::pair` (the runtime backs `socketpair(AF_UNIX, SOCK_STREAM)` with a cross-wired
+//! pipe pair) and the descriptor plumbing -- the fd traits, `try_clone`, `set_nonblocking`,
+//! `shutdown`, and `Read`/`Write` on `UnixStream` -- so a descriptor that arrives through
+//! `FromRawFd` behaves like the fd it is. The point is that code written against the portable
+//! API compiles and fails at the call that actually needs a named unix socket, not at link or
+//! module resolution.
 
 #![stable(feature = "unix_socket", since = "1.10.0")]
 
@@ -15,7 +17,7 @@ use crate::net::Shutdown;
 use crate::os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd};
 use crate::path::{Path, PathBuf};
 use crate::sys::fd::FileDesc;
-use crate::sys::unsupported;
+use crate::sys::{cvt, unsupported};
 use crate::sys::{FromInner, IntoInner};
 use crate::time::Duration;
 
@@ -142,7 +144,12 @@ impl UnixStream {
     /// Creates an unnamed pair of connected sockets.
     #[stable(feature = "unix_socket", since = "1.10.0")]
     pub fn pair() -> io::Result<(UnixStream, UnixStream)> {
-        unsupported()
+        let mut fds = [0 as libc::c_int; 2];
+        cvt(unsafe { libc::socketpair(libc::AF_UNIX, libc::SOCK_STREAM, 0, fds.as_mut_ptr()) })?;
+        Ok((
+            UnixStream(unsafe { FileDesc::from_raw_fd(fds[0]) }),
+            UnixStream(unsafe { FileDesc::from_raw_fd(fds[1]) }),
+        ))
     }
 
     /// Creates a new independently owned handle to the underlying socket.
@@ -201,8 +208,13 @@ impl UnixStream {
 
     /// Shuts down the read, write, or both halves of this connection.
     #[stable(feature = "unix_socket", since = "1.10.0")]
-    pub fn shutdown(&self, _how: Shutdown) -> io::Result<()> {
-        unsupported()
+    pub fn shutdown(&self, how: Shutdown) -> io::Result<()> {
+        let how = match how {
+            Shutdown::Read => libc::SHUT_RD,
+            Shutdown::Write => libc::SHUT_WR,
+            Shutdown::Both => libc::SHUT_RDWR,
+        };
+        cvt(unsafe { libc::shutdown(self.0.as_raw_fd(), how) }).map(drop)
     }
 
     /// Receives data on the socket from the remote address to which it is connected, without

@@ -33,10 +33,19 @@ pub(crate) fn opts() -> TargetOptions {
     // -L/sysroot/lib: native-compilation default so bare lld resolves -lc/-lc++abi/-lunwind on
     // a running Twizzler; on cross builds the nonexistent dir is a silent no-op (the build
     // system supplies its own absolute -L). Cc-driver flavors handle their own search paths.
+    //
+    // -zmax-page-size=0x1000: dynlink direct-maps a DSO's text segment from the ELF object, which
+    // requires p_offset == p_vaddr - 0x1000 (see the linker scripts). lld's default is 64K on
+    // aarch64; the clang driver already passes this for the Cc flavors.
     crate::spec::add_link_args(
         &mut pre_link_args,
         LinkerFlavor::Gnu(Cc::No, Lld::No),
-        &["--pack-dyn-relocs=relr", "-Bsymbolic-non-weak-functions", "-L/sysroot/lib"],
+        &[
+            "--pack-dyn-relocs=relr",
+            "-Bsymbolic-non-weak-functions",
+            "-L/sysroot/lib",
+            "-zmax-page-size=0x1000",
+        ],
     );
     crate::spec::add_link_args(
         &mut pre_link_args,
